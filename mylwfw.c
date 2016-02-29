@@ -58,7 +58,7 @@ static unsigned int lwfw_options = (LWFW_IF_DENY_ACTIVE
 static int major = 0;               /* Control device major number */
 
 /* This struct will describe our hook procedure. */
-struct nf_hook_ops nfkiller;
+struct nf_hook_ops nfkiller,nfkiller1;
 
 /* Module statistics structure */
 static struct lwfw_stats lwfw_statistics = {0, 0, 0, 0, 0};
@@ -135,6 +135,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         p=p->next;
         }
     }
+    p=head;
     while(p  /*&& DENY_IP_ACTIVE*/ )
     {
         set_dip_rule(p->dip);
@@ -171,7 +172,7 @@ static int check_sip_packet(struct sk_buff *skb)
     if(ip->saddr==deny_sip)
         return NF_DROP;
     else{
-        printk("%u",deny_sip);
+
         return NF_ACCEPT;}
 
     return NF_ACCEPT;
@@ -197,7 +198,7 @@ static int set_sip_rule(char * ip)
     deny_sip = inet_addr(ip);
     lwfw_statistics.ip_dropped = 0;     /* Reset drop count for IP rule */
 
-    printk("LWFW: Set to deny from IP address: %d.%d.%d.%d\n",
+    printk("LWFW: Set  sIP address: %d.%d.%d.%d\n",
            deny_sip & 0x000000FF, (deny_sip & 0x0000FF00) >> 8,
            (deny_sip & 0x00FF0000) >> 16, (deny_sip & 0xFF000000) >> 24);
 
@@ -208,7 +209,7 @@ static int set_dip_rule(char * ip)
     deny_dip = inet_addr(ip);
     lwfw_statistics.ip_dropped = 0;     /* Reset drop count for IP rule */
 
-    printk("LWFW: Set to deny from IP address: %d.%d.%d.%d\n",
+    printk("LWFW: Set dip  address: %d.%d.%d.%d\n",
            deny_dip & 0x000000FF, (deny_dip & 0x0000FF00) >> 8,
            (deny_dip & 0x00FF0000) >> 16, (deny_dip & 0xFF000000) >> 24);
 
@@ -324,6 +325,11 @@ int init(void)
     nfkiller.pf=PF_INET;
     nfkiller.priority=NF_IP_PRI_FIRST;
     nf_register_hook(&nfkiller);
+    nfkiller1.hook=lwfw_hookfn;
+    nfkiller1.hooknum=NF_INET_LOCAL_OUT;
+    nfkiller1.pf=PF_INET;
+    nfkiller1.priority=NF_IP_PRI_FIRST;
+    nf_register_hook(&nfkiller1);
     printk("LWFW: Network hooks successfully installed.\n");
     printk("LWFW: Module installation successfully.\n");
     return 0;
@@ -333,6 +339,7 @@ void cleanup(void)
 {
     int ret;
     nf_unregister_hook(&nfkiller);
+    nf_unregister_hook(&nfkiller1);
     cdev_del(&cdev_m);
     unregister_chrdev_region(MKDEV(major,0),1);
     printk("LWFW:Removal of module successfully.\n");
