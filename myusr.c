@@ -5,8 +5,9 @@
 #include <fcntl.h>
 #include "mylwfw.h"
 
-char* const short_options = "adgf:s:d:u:v:t:";
+char* const short_options = "oangf:s:d:u:v:t:";
 struct option long_options[] = {
+    {"version",0,NULL,'o'},
 	{ "active" , 0, NULL, 'a' },
 	{ "deactive"  , 0, NULL, 'd' },
 	{ "getstatus"  , 0, NULL, 'g' },
@@ -31,10 +32,13 @@ int main(int argc, char *argv[])
 	}
 	while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1) {
 	switch(c){
+	 case 'o':
+        ioctl(fd,LWFW_GET_VERS);
+        break;
       case 'a':
          ioctl(fd,LWFW_ACTIVATE);
         break;
-      case 'd':
+      case 'n':
         ioctl(fd,LWFW_DEACTIVATE);
         break;
       case 'g':

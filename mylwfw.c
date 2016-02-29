@@ -19,8 +19,6 @@
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
-#include<stdio.h>
-#include<stdlib.h>
 #include <linux/if_arp.h>
 #include <linux/cdev.h>           /// struct cdev
 #include "mylwfw.h"
@@ -199,13 +197,100 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     char buff[32];
     switch (cmd){
         case LWFW_GET_VERS:
-        return LWFW_VERS: {
-
-
-
+            return LWFW_VERS;
+        case LWFW_ACTIVATE:{
+            active=1;
+            printk("LWFW: Activated.\n");
+            if(!deny_sip&&!deny_dip){
+                printk("LWFW no deny ip\n");
+            }
+            break;
         }
+        case LWFW_DEACTIVATE: {
+       active ^= active;
+           printk("LWFW: Deactivated.\n");
+       break;
     }
-}
+    case LWFW_GET_STATS:{
+        ret=copy_stats((struct lwfw_stats*)arg);
+        break;
+    }
+    case LWFW_DENY_SIP:{
+        copy_from_user(buff,arg,32);
+        ret=set_sip_rule((char*)buff);
+        break;
+    }
+     case LWFW_DENY_DIP:{
+        copy_from_user(buff,arg,32);
+        ret=set_dip_rule((char*)buff);
+        break;
+    }
+    default:
+        ret=-EBADRQC;
+        };
+        return ret;
+    }
+
+    static int lwfw_open(struct inode *inode, struct file *file){
+        if(lwfw_ctrl_in_use){
+                return -EBUSY;
+            }else{
+                lwfw_ctrl_in_use++;
+                return 0;
+            }
+            return 0;
+    }
+    static int lwfw_release(struct inode *inode,struct file *file){
+        lwfw_ctrl_in_use^=lwfw_ctrl_in_use;
+        return 0;
+    }
+
+    int init(void){
+        int result,err;
+        dev_t devno,devno_m;
+        result=alloc_chrdev_region(&devno,0,1,LWFW_NAME);
+        major=MAJOR(devno);
+        if(result<0)
+        return result;
+        devno_m=MKDEV(major,0);
+        printk("major is %d\n",MAJOR(devno_m));
+        printk("minor is %d\n",MINOR(devno_m));
+        cdev_init(&cdev_m, &lwfw_fops);
+        cdev_m.owner = THIS_MODULE;
+        cdev_m.ops = &lwfw_fops;
+         err = cdev_add(&cdev_m, devno_m, 1);
+    if(err != 0 ){
+    printk("cdev_add error\n");
+    }
+
+    lwfw_ctrl_in_use^=lwfw_ctrl_in_use;
+    printk("\n LWFW:COntrol device successfully registered.\n");
+    nfkiller.hook=lwfw_hookfn;
+    nfkiller.hooknum=NF_INET_PRE_ROUTING;
+    nfkiller.pf=PF_INET;
+    nfkiller.priority=NF_IP_PRI_FIRST;
+    nf_register_hook(&nfkiller);
+    printk("LWFW: Network hooks successfully installed.\n");
+    printk("LWFW: Module installation successfully.\n");
+    return 0;
+    }
+
+    void cleanup(void){
+        int ret;
+        nf_unregister_hook(&nfkiller);
+        cdev_del(&cdev_m);
+        unregister_chrdev_region(MKDEV(major,0),1);
+        printk("LWFW:Removal of module successfully.\n");
+
+
+    }
+
+    module_init(init);
+    module_exit(cleanup);
+
+    MODULE_LICENSE("GPL");
+    MODULE_AUTHOR("hzy");
+
 
 
 
