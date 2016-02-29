@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <errno.h>
 #include <getopt.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -25,9 +25,9 @@ int main(int argc, char *argv[])
 	int fd;
 	struct lwfw_stats status;
 	DENY_IN   deny_in;
-	fd = open(LWFW_NAME,O_RDWR);
+	fd = open("/dev/mylwfw",O_RDWR);
 	if(fd == -1 ){
-	perror("open");
+	printf("open %s failed ,error: %s\n",LWFW_NAME,strerror(errno));
 	return 0;
 	}
 	while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1) {
@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
         break;
       case 'a':
          ioctl(fd,LWFW_ACTIVATE);
+         printf("active successfully\n");
         break;
       case 'n':
         ioctl(fd,LWFW_DEACTIVATE);
