@@ -59,6 +59,7 @@ typedef struct deny_information{
     char *dport;
     char* time;
     char* interface;
+    struct deny_information*next;
 }DENY_IN;
 
 /*
