@@ -13,6 +13,7 @@
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include<linux/udp.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/icmp.h>
@@ -34,6 +35,7 @@ static int set_dip_rule(char *dip);
 //static int check_udp_packet(struct sk_buff *skb);
 static int check_sip_packet(struct sk_buff *skb);
 static int check_dip_packet(struct sk_buff *skb);
+static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
 //static int check_sport_packet(struct sk_buff *skb);
 //static int check_dport_packet(struct sk_buff *skb);
 //static int check_time_packet(struct sk_buff *skb);
@@ -54,7 +56,7 @@ static int active = 0;
 /* Specifies options for the LWFW module */
 static unsigned int lwfw_options = (LWFW_IF_DENY_ACTIVE
                                     | LWFW_IP_DENY_ACTIVE
-                                    | LWFW_PORT_DENY_ACTIVE|LWFW_TIME_DENY_ACTIVE);
+                                    | LWFW_PORT_DENY_ACTIVE|LWFW_TIME_DENY_ACTIVE|LWFW_PROTOCOL_DENY_ACTIVE);
 static int major = 0;               /* Control device major number */
 
 /* This struct will describe our hook procedure. */
@@ -112,6 +114,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
                          int (*okfn)(struct sk_buff *))
 {
     unsigned int ret = NF_ACCEPT;
+    unsigned int check_sport=NF_ACCEPT;
     DENY_IN *p=head;
     /* If LWFW is not currently active, immediately return ACCEPT */
     if (!active)
@@ -125,12 +128,14 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
     /* Check the IP address rule */
     if(p==NULL){
         printk("p is NULL");
+        return NF_ACCEPT;
     }
     while (p  /*&& DENY_IP_ACTIVE*/ )
     {
         set_sip_rule(p->sip);
         ret = check_sip_packet(skb);
-        if (ret != NF_ACCEPT) return ret;
+        check_sport=check_protocol_sport(skb,p);
+        if (!(ret && check_sport)) return NF_DROP;
         else{
         p=p->next;
         }
@@ -193,6 +198,39 @@ static int check_dip_packet(struct sk_buff *skb)
     return NF_ACCEPT;
 }
 
+static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
+{
+    struct sk_buff *sk=skb_copy(skb,1);
+    struct tcphdr*tcph=NULL;
+    struct udphdr*udph=NULL;
+    const struct iphdr*iph=NULL;
+    struct iphdr*ip;
+
+    if(!skb)
+    return NF_ACCEPT;
+    ip=ip_hdr(sk);
+    iph=ip_hdr(skb);
+    if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+        tcph=(void *)iph+iph->ihl*4;
+
+        if(ntohs( tcph->source)==p->sport){
+          printk("sport %d is drop",p->sport);
+                return NF_DROP;
+            }
+    }else{
+    if(ip->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
+        udph=(void*)iph+iph->ihl*4;
+
+        if(ntohs( tcph->source)==p->sport){
+            printk("sport %d is drop",p->sport);
+            return NF_DROP;
+            }
+            }
+    }
+    return NF_ACCEPT;
+}
+
+
 static int set_sip_rule(char * ip)
 {
     deny_sip = inet_addr(ip);
@@ -231,12 +269,11 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
             p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
             p->next=NULL;
             p->dip=NULL;
-            p->dport=NULL;
-            p->interface=NULL;
-            p->protocl=NULL;
+            p->dport=LWFW_ANY_DPORT;
+            p->protocl=LWFW_ANY_PROTOCOL;
             p->sip=NULL;
-            p->sport=NULL;
-            p->time=NULL;
+            p->sport=LWFW_ANY_SPORT;
+            p->time=LWFW_ANY_TIME;
             if(head==NULL){
             currentp=head=p;
             }else{
@@ -272,6 +309,22 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
         memmove(currentp->dip,buff,sizeof(buff));
         break;
+    }
+    case LWFW_DENY_PROTOCOL:
+    {
+        currentp->protocl=arg;
+        break;
+    }
+    case  LWFW_DENY_SPORT:
+    {
+        currentp->sport=arg;
+        break;
+    }
+    case LWFW_DENY_DPORT:
+    {
+        currentp->dport=arg;
+        break;
+
     }
     default:
         ret=-EBADRQC;

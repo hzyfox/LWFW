@@ -20,6 +20,9 @@
 */
 #define LWFW_TALKATIVE
 
+#define  LWFW_TCP 0x0001
+#define LWFW_UDP 0x0002
+
 /* These are the IOCTL codes used for the control device */
 #define LWFW_CTRL_SET   0xFEED0000     /* The 0xFEED... prefix is arbitrary */
 #define LWFW_GET_VERS   0xFEED0001     /* Get the version of LWFM */
@@ -32,12 +35,22 @@
 #define LWFW_DENY_SPORT  0xFEED0008
 #define  LWFW_DENY_DPORT 0xFEED0009
 #define LWFW_DENY_TIME 0xFEED000A
+#define LWFW_DENY_PROTOCOL 0xFEED000B
+
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001
 #define LWFW_IP_DENY_ACTIVE   0x00000002
 #define LWFW_PORT_DENY_ACTIVE 0x00000004
 #define LWFW_TIME_DENY_ACTIVE 0x00000008
+#define LWFW_PROTOCOL_DENY_ACTIVE 0x00000010
+
+
+#define  LWFW_ANY_SPORT    0xFFFFFFF2
+#define  LWFW_ANY_DPORT    0xFFFFFFF3
+#define  LWFW_ANY_TIME    0xFFFFFFF4
+#define  LWFW_ANY_PROTOCOL  0xFFFFFFF5
+
 
 /* Statistics structure for LWFW.
 * Note that whenever a rule's condition is changed the related
@@ -54,11 +67,11 @@ struct lwfw_stats {
 typedef struct deny_information{
     char * sip;
     char* dip;
-    char* protocl;
-    char*sport;
-    char *dport;
-    char* time;
-    char* interface;
+    unsigned int  protocl;
+    unsigned long sport;
+    unsigned long dport;
+    unsigned long   time;
+
     struct deny_information*next;
 }DENY_IN;
 
@@ -75,4 +88,5 @@ typedef struct deny_information{
 #define DENY_IP_ACTIVE    (lwfw_options & LWFW_IP_DENY_ACTIVE)
 #define DENY_PORT_ACTIVE  (lwfw_options & LWFW_PORT_DENY_ACTIVE)
 #define DENY_TIME_ACTIVE (lwfw_options &LWFW_TIME_DENY_ACTIVE)
+#define  DENY_PROTOCOL_ACTIVE (lwfw_options &LWFW_PROTOCOL_DENY_ACTIVE)
 #endif
