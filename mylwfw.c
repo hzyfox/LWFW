@@ -36,6 +36,7 @@ static int set_dip_rule(char *dip);
 static int check_sip_packet(struct sk_buff *skb);
 static int check_dip_packet(struct sk_buff *skb);
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
+static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p);
 //static int check_sport_packet(struct sk_buff *skb);
 //static int check_dport_packet(struct sk_buff *skb);
 //static int check_time_packet(struct sk_buff *skb);
@@ -113,8 +114,9 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
                          const struct net_device *out,
                          int (*okfn)(struct sk_buff *))
 {
-    unsigned int ret = NF_ACCEPT;
-    unsigned int check_sport=NF_ACCEPT;
+    unsigned int ret = NF_DROP;
+    unsigned int check_sport=NF_DROP;
+     unsigned int check_dport=NF_DROP;
     DENY_IN *p=head;
     /* If LWFW is not currently active, immediately return ACCEPT */
     if (!active)
@@ -135,7 +137,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         set_sip_rule(p->sip);
         ret = check_sip_packet(skb);
         check_sport=check_protocol_sport(skb,p);
-        if (!(ret && check_sport)) return NF_DROP;
+        if (!ret && !check_sport) return NF_DROP;
         else{
         p=p->next;
         }
@@ -145,7 +147,8 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
     {
         set_dip_rule(p->dip);
         ret = check_dip_packet(skb);
-        if (ret != NF_ACCEPT) return ret;
+        check_dport=check_protocol_dport(skb,p);
+        if (!ret&&!check_dport ) return NF_DROP;
         else{
         p=p->next;
         }
@@ -223,6 +226,38 @@ static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
 
         if(ntohs( tcph->source)==p->sport){
             printk("sport %d is drop",p->sport);
+            return NF_DROP;
+            }
+            }
+    }
+    return NF_ACCEPT;
+}
+
+static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
+{
+    struct sk_buff *sk=skb_copy(skb,1);
+    struct tcphdr*tcph=NULL;
+    struct udphdr*udph=NULL;
+    const struct iphdr*iph=NULL;
+    struct iphdr*ip;
+
+    if(!skb)
+    return NF_ACCEPT;
+    ip=ip_hdr(sk);
+    iph=ip_hdr(skb);
+    if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+        tcph=(void *)iph+iph->ihl*4;
+
+        if(ntohs( tcph->dest)==p->dport){
+          printk("dport %d is drop",p->dport);
+                return NF_DROP;
+            }
+    }else{
+    if(ip->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
+        udph=(void*)iph+iph->ihl*4;
+
+        if(ntohs( tcph->dest)==p->dport){
+            printk("sport %d is drop",p->dport);
             return NF_DROP;
             }
             }
