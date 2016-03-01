@@ -34,8 +34,9 @@
 #define LWFW_DENY_DIP  0xFEED0007
 #define LWFW_DENY_SPORT  0xFEED0008
 #define  LWFW_DENY_DPORT 0xFEED0009
-#define LWFW_DENY_TIME 0xFEED000A
-#define LWFW_DENY_PROTOCOL 0xFEED000B
+#define LWFW_DENY_TIME_START 0xFEED000A
+#define LWFW_DENY_TIME_END   0xFEED000B
+#define LWFW_DENY_PROTOCOL 0xFEED000C
 
 
 /* Control flags/Options */
@@ -70,8 +71,8 @@ typedef struct deny_information{
     unsigned int  protocl;
     unsigned long sport;
     unsigned long dport;
-    unsigned long   time;
-
+    unsigned int   timestart;
+    unsigned int   timeend;
     struct deny_information*next;
 }DENY_IN;
 

@@ -18,6 +18,9 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/icmp.h>
 #include <net/sock.h>
+#include<linux/timer.h>
+#include <linux/timex.h>
+#include<linux/rtc.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <linux/if_arp.h>
@@ -37,6 +40,7 @@ static int check_sip_packet(struct sk_buff *skb);
 static int check_dip_packet(struct sk_buff *skb);
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p);
+static int check_time(struct sk_buff*skb,DENY_IN*p);
 //static int check_sport_packet(struct sk_buff *skb);
 //static int check_dport_packet(struct sk_buff *skb);
 //static int check_time_packet(struct sk_buff *skb);
@@ -117,6 +121,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
     unsigned int ret = NF_DROP;
     unsigned int check_sport=NF_DROP;
      unsigned int check_dport=NF_DROP;
+     unsigned int check_t=NF_DROP;
     DENY_IN *p=head;
     /* If LWFW is not currently active, immediately return ACCEPT */
     if (!active)
@@ -137,7 +142,8 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         set_sip_rule(p->sip);
         ret = check_sip_packet(skb);
         check_sport=check_protocol_sport(skb,p);
-        if (!ret && !check_sport) return NF_DROP;
+        check_t=check_time(skb,p);
+        if (!ret && !check_sport&&!check_t) return NF_DROP;
         else{
         p=p->next;
         }
@@ -148,7 +154,8 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         set_dip_rule(p->dip);
         ret = check_dip_packet(skb);
         check_dport=check_protocol_dport(skb,p);
-        if (!ret&&!check_dport ) return NF_DROP;
+        check_t=check_time(skb,p);
+        if (!ret&&!check_dport&&!check_t ) return NF_DROP;
         else{
         p=p->next;
         }
@@ -177,7 +184,7 @@ static int check_sip_packet(struct sk_buff *skb)
     if(!sk)
         return NF_ACCEPT;
     ip=ip_hdr(sk);
-    if(ip->saddr==deny_sip)
+    if(ip->saddr==deny_sip||deny_sip==0x00000000)
         return NF_DROP;
     else{
 
@@ -193,7 +200,7 @@ static int check_dip_packet(struct sk_buff *skb)
     if(!sk)
         return NF_ACCEPT;
     ip=ip_hdr(sk);
-    if(ip->daddr==deny_dip)
+    if(ip->daddr==deny_dip||deny_dip==0x00000000)
         return NF_DROP;
     else
         return NF_ACCEPT;
@@ -213,6 +220,8 @@ static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
     return NF_ACCEPT;
     ip=ip_hdr(sk);
     iph=ip_hdr(skb);
+    if(p->protocl==LWFW_ANY_PROTOCOL&&p->sport==LWFW_ANY_SPORT)
+    return NF_DROP;
     if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
         tcph=(void *)iph+iph->ihl*4;
 
@@ -245,6 +254,8 @@ static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
     return NF_ACCEPT;
     ip=ip_hdr(sk);
     iph=ip_hdr(skb);
+    if(p->protocl==LWFW_ANY_PROTOCOL&&p->dport==LWFW_ANY_DPORT)
+    return NF_DROP;
     if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
         tcph=(void *)iph+iph->ihl*4;
 
@@ -261,6 +272,19 @@ static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
             return NF_DROP;
             }
             }
+    }
+    return NF_ACCEPT;
+}
+static int check_time(struct sk_buff*skb,DENY_IN*p){
+    struct timex txc;
+    struct rtc_time tm;
+    do_gettimeofday(&(txc.time));
+    rtc_time_to_tm(txc.time.tv_sec,&tm);
+    printk("the system time is %d\n",tm.tm_hour);
+    if(p->timeend==LWFW_ANY_TIME&&p->timestart==LWFW_ANY_TIME)
+    return NF_DROP;
+    if((tm.tm_hour+8)<=p->timeend&&(tm.tm_hour+8)>=p->timestart){
+        return NF_DROP;
     }
     return NF_ACCEPT;
 }
@@ -308,7 +332,8 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
             p->protocl=LWFW_ANY_PROTOCOL;
             p->sip=NULL;
             p->sport=LWFW_ANY_SPORT;
-            p->time=LWFW_ANY_TIME;
+            p->timestart=LWFW_ANY_TIME;
+            p->timeend=LWFW_ANY_TIME;
             if(head==NULL){
             currentp=head=p;
             }else{
@@ -360,6 +385,16 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         currentp->dport=arg;
         break;
 
+    }
+    case LWFW_DENY_TIME_START:
+    {
+        currentp->timestart=(unsigned)arg;
+        break;
+    }
+    case LWFW_DENY_TIME_END:
+    {
+        currentp->timeend=(unsigned)arg;
+        break;
     }
     default:
         ret=-EBADRQC;
