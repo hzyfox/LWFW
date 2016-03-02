@@ -57,14 +57,12 @@ int main(int argc, char *argv[])
             break;
 
         case 's':
-            deny_in.sip=optarg;
-            ioctl(fd,LWFW_DENY_SIP,deny_in.sip);
-            printf("sip is %s\n",deny_in.sip);
+            ioctl(fd,LWFW_DENY_SIP,optarg);
+            printf("sip is %s\n",optarg);
             break;
         case 'd':
-            deny_in.dip=optarg;
-            ioctl(fd,LWFW_DENY_DIP,deny_in.dip);
-            printf("dip is %s\n",deny_in.dip);
+            ioctl(fd,LWFW_DENY_DIP,optarg);
+            printf("dip is %s\n",optarg);
             break;
         case 'u':
             deny_in.sport=strtol(optarg,&str,10);
@@ -99,7 +97,7 @@ int main(int argc, char *argv[])
             {
                 if(deny_in.protocl==0)
                 {
-                    deny_in.protocl==LWFW_UDP;
+                    deny_in.protocl=LWFW_UDP;
                     ioctl(fd,LWFW_DENY_PROTOCOL,deny_in.protocl);
                     printf("deny protocol is %d\n",deny_in.protocl);
                 }

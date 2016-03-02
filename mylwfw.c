@@ -36,8 +36,8 @@ static int set_dip_rule(char *dip);
 //static int set_time_rule(char *time);
 //static int check_tcp_packet(struct sk_buff *skb);
 //static int check_udp_packet(struct sk_buff *skb);
-static int check_sip_packet(struct sk_buff *skb);
-static int check_dip_packet(struct sk_buff *skb);
+static int check_sip_packet(struct sk_buff *skb,DENY_IN *p);
+static int check_dip_packet(struct sk_buff *skb,DENY_IN*p);
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p);
 static int check_time(struct sk_buff*skb,DENY_IN*p);
@@ -118,11 +118,13 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
                          const struct net_device *out,
                          int (*okfn)(struct sk_buff *))
 {
-    unsigned int ret = NF_DROP;
+    unsigned int check_dip = NF_DROP;
     unsigned int check_sport=NF_DROP;
      unsigned int check_dport=NF_DROP;
      unsigned int check_t=NF_DROP;
+     unsigned int check_sip=NF_DROP;
     DENY_IN *p=head;
+    int j=0;
     /* If LWFW is not currently active, immediately return ACCEPT */
     if (!active)
         return NF_ACCEPT;
@@ -137,29 +139,25 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         printk("p is NULL");
         return NF_ACCEPT;
     }
+
     while (p  /*&& DENY_IP_ACTIVE*/ )
     {
-        set_sip_rule(p->sip);
-        ret = check_sip_packet(skb);
+          printk("the %d node  p->sip: %d.%d.%d.%d\n",
+           j++,p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
+           (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
+        check_sip = check_sip_packet(skb,p);
         check_sport=check_protocol_sport(skb,p);
         check_t=check_time(skb,p);
-        if (!ret && !check_sport&&!check_t) return NF_DROP;
-        else{
-        p=p->next;
-        }
-    }
-    p=head;
-    while(p  /*&& DENY_IP_ACTIVE*/ )
-    {
-        set_dip_rule(p->dip);
-        ret = check_dip_packet(skb);
+        check_dip = check_dip_packet(skb,p);
         check_dport=check_protocol_dport(skb,p);
-        check_t=check_time(skb,p);
-        if (!ret&&!check_dport&&!check_t ) return NF_DROP;
+        printk("check_sip is %d chck_sport is %d check_time is %d check_t is %d check_dip is %d check_dport is %d\n",check_sip,check_sport,check_t,check_dip,check_dport);
+        if (!check_sip && !check_sport&&!check_t&&!check_dip&&!check_dport)
+        return NF_DROP;
         else{
         p=p->next;
         }
     }
+
 
     /* Finally, check the TCP port rule */
 
@@ -177,15 +175,24 @@ static int copy_stats(struct lwfw_stats *statbuff)
     return 0;
 }
 
-static int check_sip_packet(struct sk_buff *skb)
+static int check_sip_packet(struct sk_buff *skb,DENY_IN*p)
 {
-    struct sk_buff*sk=skb_copy(skb,1);
+
     struct iphdr *ip;
-    if(!sk)
+    if(!skb){
+        printk("skb is empty\n");
         return NF_ACCEPT;
-    ip=ip_hdr(sk);
-    if(ip->saddr==deny_sip||deny_sip==0x00000000)
+        }
+    ip=ip_hdr(skb);
+    if(ip->saddr==p->sip||p->sip==0x00000000){
+          printk("ip->saddr= %d.%d.%d.%d\n",
+           ip->saddr & 0x000000FF, (ip->saddr & 0x0000FF00) >> 8,
+           (ip->saddr & 0x00FF0000) >> 16, (ip->saddr & 0xFF000000) >> 24);
+             printk("p->sip= %d.%d.%d.%d\n",
+           p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
+           (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
         return NF_DROP;
+        }
     else{
 
         return NF_ACCEPT;}
@@ -193,49 +200,50 @@ static int check_sip_packet(struct sk_buff *skb)
     return NF_ACCEPT;
 }
 
-static int check_dip_packet(struct sk_buff *skb)
+static int check_dip_packet(struct sk_buff *skb,DENY_IN*p)
 {
-    struct sk_buff*sk=skb_copy(skb,1);
+
     struct iphdr *ip;
-    if(!sk)
+    if(!skb)
         return NF_ACCEPT;
-    ip=ip_hdr(sk);
-    if(ip->daddr==deny_dip||deny_dip==0x00000000)
+    ip=ip_hdr(skb);
+    if(ip->daddr==p->dip||p->dip==0x00000000){
         return NF_DROP;
-    else
+        }
+    else{
         return NF_ACCEPT;
+        }
+
 
     return NF_ACCEPT;
 }
 
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
 {
-    struct sk_buff *sk=skb_copy(skb,1);
     struct tcphdr*tcph=NULL;
     struct udphdr*udph=NULL;
     const struct iphdr*iph=NULL;
-    struct iphdr*ip;
 
     if(!skb)
     return NF_ACCEPT;
-    ip=ip_hdr(sk);
+
     iph=ip_hdr(skb);
     if(p->protocl==LWFW_ANY_PROTOCOL&&p->sport==LWFW_ANY_SPORT)
     return NF_DROP;
-    if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
         tcph=(void *)iph+iph->ihl*4;
 
         if(ntohs( tcph->source)==p->sport){
-          printk("sport %d is drop",p->sport);
-                return NF_DROP;
+          printk("tcp sport %d is drop",p->sport);
+                return 0;
             }
     }else{
-    if(ip->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
+    if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
         udph=(void*)iph+iph->ihl*4;
 
         if(ntohs( tcph->source)==p->sport){
-            printk("sport %d is drop",p->sport);
-            return NF_DROP;
+            printk("udp sport %d is drop",p->sport);
+            return 0;
             }
             }
     }
@@ -244,32 +252,31 @@ static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
 
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
 {
-    struct sk_buff *sk=skb_copy(skb,1);
+
     struct tcphdr*tcph=NULL;
     struct udphdr*udph=NULL;
     const struct iphdr*iph=NULL;
-    struct iphdr*ip;
+
 
     if(!skb)
     return NF_ACCEPT;
-    ip=ip_hdr(sk);
     iph=ip_hdr(skb);
     if(p->protocl==LWFW_ANY_PROTOCOL&&p->dport==LWFW_ANY_DPORT)
     return NF_DROP;
-    if(ip->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
         tcph=(void *)iph+iph->ihl*4;
 
         if(ntohs( tcph->dest)==p->dport){
-          printk("dport %d is drop",p->dport);
+          printk(" tcp dport %d is drop\n",p->dport);
                 return NF_DROP;
             }
     }else{
-    if(ip->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
+    if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
         udph=(void*)iph+iph->ihl*4;
 
         if(ntohs( tcph->dest)==p->dport){
-            printk("sport %d is drop",p->dport);
-            return NF_DROP;
+            printk("udp dport %d is drop\n",p->dport);
+            return 0;
             }
             }
     }
@@ -280,7 +287,7 @@ static int check_time(struct sk_buff*skb,DENY_IN*p){
     struct rtc_time tm;
     do_gettimeofday(&(txc.time));
     rtc_time_to_tm(txc.time.tv_sec,&tm);
-    printk("the system time is %d\n",tm.tm_hour);
+
     if(p->timeend==LWFW_ANY_TIME&&p->timestart==LWFW_ANY_TIME)
     return NF_DROP;
     if((tm.tm_hour+8)<=p->timeend&&(tm.tm_hour+8)>=p->timestart){
@@ -314,9 +321,10 @@ static int set_dip_rule(char * ip)
 }
 static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
 {
-    DENY_IN *pre,*p;
+    DENY_IN *p;
     int ret=0;
     char buff[32];
+    char* deny_buff;
     switch (cmd)
     {
     case LWFW_GET_VERS:
@@ -325,12 +333,14 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     {
         active=1;
         printk("LWFW: Activated.\n");
+
             p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
             p->next=NULL;
-            p->dip=NULL;
+            p->sip=0x00000000;
+            p->dip=0x00000000;
             p->dport=LWFW_ANY_DPORT;
             p->protocl=LWFW_ANY_PROTOCOL;
-            p->sip=NULL;
+
             p->sport=LWFW_ANY_SPORT;
             p->timestart=LWFW_ANY_TIME;
             p->timeend=LWFW_ANY_TIME;
@@ -356,18 +366,24 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     case LWFW_DENY_SIP:
     {
         copy_from_user(buff,arg,32);
-        currentp->sip=(char *)kmalloc(sizeof(buff),GFP_KERNEL);
+        deny_buff=(char *)kmalloc(sizeof(buff),GFP_KERNEL);
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
-        memmove(currentp->sip,buff,sizeof(buff));
-
+        memmove(deny_buff,buff,sizeof(buff));
+        set_sip_rule(deny_buff);
+        currentp->sip=deny_sip;
+          printk("current->sip %d.%d.%d.%d\n",
+           currentp->sip & 0x000000FF, (currentp->sip & 0x0000FF00) >> 8,
+           (currentp->sip & 0x00FF0000) >> 16, (currentp->sip & 0xFF000000) >> 24);
         break;
     }
     case LWFW_DENY_DIP:
     {
         copy_from_user(buff,arg,32);
-        currentp->dip=kmalloc(sizeof(buff),GFP_KERNEL);
+        deny_buff=kmalloc(sizeof(buff),GFP_KERNEL);
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
-        memmove(currentp->dip,buff,sizeof(buff));
+        memmove(deny_buff,buff,sizeof(buff));
+        set_dip_rule(deny_buff);
+        currentp->dip=deny_dip;
         break;
     }
     case LWFW_DENY_PROTOCOL:
@@ -460,11 +476,11 @@ int init(void)
 
 void cleanup(void)
 {
-    int ret;
     nf_unregister_hook(&nfkiller);
     nf_unregister_hook(&nfkiller1);
     cdev_del(&cdev_m);
     unregister_chrdev_region(MKDEV(major,0),1);
+
     printk("LWFW:Removal of module successfully.\n");
 
 

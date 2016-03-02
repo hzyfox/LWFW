@@ -66,8 +66,8 @@ struct lwfw_stats {
 };
 
 typedef struct deny_information{
-    char * sip;
-    char* dip;
+    unsigned int  sip;
+    unsigned int dip;
     unsigned int  protocl;
     unsigned long sport;
     unsigned long dport;
