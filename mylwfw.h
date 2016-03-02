@@ -22,6 +22,8 @@
 
 #define  LWFW_TCP 0x0001
 #define LWFW_UDP 0x0002
+#define COPY_END_EMPTY    0xFFFFEEEE
+#define  COPY_END_FULL     0xFFFFEEEF
 
 /* These are the IOCTL codes used for the control device */
 #define LWFW_CTRL_SET   0xFEED0000     /* The 0xFEED... prefix is arbitrary */
@@ -37,7 +39,9 @@
 #define LWFW_DENY_TIME_START 0xFEED000A
 #define LWFW_DENY_TIME_END   0xFEED000B
 #define LWFW_DENY_PROTOCOL 0xFEED000C
-
+#define  LWFW_COPY_TO_USER      0xFEED000D
+#define LWFW_DELETE_INODE   0xFEED000E
+#define LWFW_SAVE_RULE 0xFEED000F
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001
@@ -58,9 +62,13 @@
 * xxx_dropped field is reset.
 */
 struct lwfw_stats {
-   unsigned int if_dropped;           /* Packets dropped by interface rule */
-   unsigned int ip_dropped;           /* Packets dropped by IP addr. rule */
-   unsigned int tcp_dropped;           /* Packets dropped by TCP port rule */
+   unsigned int sip_dropped;
+   unsigned int dip_dropped;
+   unsigned int sport_dropped;
+   unsigned int dport_dropped;           /* Packets dropped by IP addr. rule */
+   unsigned int tcp_dropped;
+   unsigned int udp_dropped;
+   unsigned int time_dropped;           /* Packets dropped by TCP port rule */
    unsigned long total_dropped;   /* Total packets dropped */
    unsigned long total_seen;      /* Total packets seen by filter */
 };
@@ -73,6 +81,7 @@ typedef struct deny_information{
     unsigned long dport;
     unsigned int   timestart;
     unsigned int   timeend;
+    unsigned int  copy_flag;
     struct deny_information*next;
 }DENY_IN;
 

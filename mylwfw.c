@@ -68,7 +68,7 @@ static int major = 0;               /* Control device major number */
 struct nf_hook_ops nfkiller,nfkiller1;
 
 /* Module statistics structure */
-static struct lwfw_stats lwfw_statistics = {0, 0, 0, 0, 0};
+static struct lwfw_stats lwfw_statistics = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 /* Actual rule 'definitions'. */
 /* TODO:  One day LWFW might actually support many simultaneous rules.
@@ -86,7 +86,7 @@ unsigned int inet_addr(char *str)
     int a,b,c,d;
     char arr[4];
     if(str==NULL)
-    return 0;
+        return 0;
     sscanf(str,"%d.%d.%d.%d",&a,&b,&c,&d);
     arr[0] = a;
     arr[1] = b;
@@ -118,11 +118,11 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
                          const struct net_device *out,
                          int (*okfn)(struct sk_buff *))
 {
-    unsigned int check_dip = NF_DROP;
-    unsigned int check_sport=NF_DROP;
-     unsigned int check_dport=NF_DROP;
-     unsigned int check_t=NF_DROP;
-     unsigned int check_sip=NF_DROP;
+    unsigned int check_dip = 0;
+    unsigned int check_sport=0;
+    unsigned int check_dport=0;
+    unsigned int check_t=0;
+    unsigned int check_sip=0;
     DENY_IN *p=head;
     int j=0;
     /* If LWFW is not currently active, immediately return ACCEPT */
@@ -135,26 +135,25 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
 
 
     /* Check the IP address rule */
-    if(p==NULL){
+    if(p==NULL)
+    {
         printk("p is NULL");
         return NF_ACCEPT;
     }
 
     while (p  /*&& DENY_IP_ACTIVE*/ )
     {
-          printk("the %d node  p->sip: %d.%d.%d.%d\n",
-           j++,p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
-           (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
         check_sip = check_sip_packet(skb,p);
         check_sport=check_protocol_sport(skb,p);
         check_t=check_time(skb,p);
         check_dip = check_dip_packet(skb,p);
         check_dport=check_protocol_dport(skb,p);
-        printk("check_sip is %d chck_sport is %d check_time is %d check_t is %d check_dip is %d check_dport is %d\n",check_sip,check_sport,check_t,check_dip,check_dport);
+        printk("check_sip is %d check_sport is %d check_time is %d check_t is %d check_dip is %d check_dport is %d\n",check_sip,check_sport,check_t,check_dip,check_dport);
         if (!check_sip && !check_sport&&!check_t&&!check_dip&&!check_dport)
-        return NF_DROP;
-        else{
-        p=p->next;
+            return NF_DROP;
+        else
+        {
+            p=p->next;
         }
     }
 
@@ -179,25 +178,34 @@ static int check_sip_packet(struct sk_buff *skb,DENY_IN*p)
 {
 
     struct iphdr *ip;
-    if(!skb){
+    if(!skb)
+    {
         printk("skb is empty\n");
-        return NF_ACCEPT;
-        }
+        return 1;
+    }
     ip=ip_hdr(skb);
-    if(ip->saddr==p->sip||p->sip==0x00000000){
-          printk("ip->saddr= %d.%d.%d.%d\n",
-           ip->saddr & 0x000000FF, (ip->saddr & 0x0000FF00) >> 8,
-           (ip->saddr & 0x00FF0000) >> 16, (ip->saddr & 0xFF000000) >> 24);
-             printk("p->sip= %d.%d.%d.%d\n",
-           p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
-           (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
-        return NF_DROP;
-        }
-    else{
+    if(ip->saddr==p->sip||p->sip==0x00000000)
+    {
+        printk("ip->saddr= %d.%d.%d.%d ",
+               ip->saddr & 0x000000FF, (ip->saddr & 0x0000FF00) >> 8,
+               (ip->saddr & 0x00FF0000) >> 16, (ip->saddr & 0xFF000000) >> 24);
+        printk("p->sip= %d.%d.%d.%d",
+               p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
+               (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
+            if(p->sip!=0x00000000){
+        lwfw_statistics.sip_dropped++;
+        lwfw_statistics.total_dropped++;}
+        printk(" return 0 \n");
+        return 0;
+    }
+    else
+    {
 
-        return NF_ACCEPT;}
+        printk("sip is not in the rule return 1\n");
+        return 1;
+    }
 
-    return NF_ACCEPT;
+    return 1;
 }
 
 static int check_dip_packet(struct sk_buff *skb,DENY_IN*p)
@@ -205,17 +213,31 @@ static int check_dip_packet(struct sk_buff *skb,DENY_IN*p)
 
     struct iphdr *ip;
     if(!skb)
-        return NF_ACCEPT;
+        return 1;
     ip=ip_hdr(skb);
-    if(ip->daddr==p->dip||p->dip==0x00000000){
-        return NF_DROP;
+    if(ip->daddr==p->dip||p->dip==0x00000000)
+    {
+        if(p->dip!=0x00000000){
+        lwfw_statistics.dip_dropped++;
+        lwfw_statistics.total_dropped++;
         }
-    else{
-        return NF_ACCEPT;
-        }
+         printk("ip->daddr= %d.%d.%d.%d ",
+               ip->daddr & 0x000000FF, (ip->daddr & 0x0000FF00) >> 8,
+               (ip->daddr & 0x00FF0000) >> 16, (ip->daddr & 0xFF000000) >> 24);
+        printk("p->dip= %d.%d.%d.%d",
+               p->dip & 0x000000FF, (p->dip & 0x0000FF00) >> 8,
+               (p->dip & 0x00FF0000) >> 16, (p->dip & 0xFF000000) >> 24);
+         printk(" return 0 \n");
+        return 0;
+    }
+    else
+    {
+        printk("dip is not in the rule return 1 \n");
+        return 1;
+    }
 
 
-    return NF_ACCEPT;
+    return 0;
 }
 
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
@@ -225,29 +247,41 @@ static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
     const struct iphdr*iph=NULL;
 
     if(!skb)
-    return NF_ACCEPT;
+        return 1;
 
     iph=ip_hdr(skb);
-    if(p->protocl==LWFW_ANY_PROTOCOL&&p->sport==LWFW_ANY_SPORT)
-    return NF_DROP;
-    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+    if(p->protocl==LWFW_ANY_PROTOCOL||p->sport==LWFW_ANY_SPORT)
+        return 0;
+    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP)
+    {
         tcph=(void *)iph+iph->ihl*4;
 
-        if(ntohs( tcph->source)==p->sport){
-          printk("tcp sport %d is drop",p->sport);
+        if(ntohs( tcph->source)==p->sport)
+        {
+            printk("tcp sport %d is drop return 0\n",p->sport);
+            lwfw_statistics.tcp_dropped++;
+            lwfw_statistics.sport_dropped++;
+            lwfw_statistics.total_dropped++;
+            return 0;
+        }
+    }
+    else
+    {
+        if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP)
+        {
+            udph=(void*)iph+iph->ihl*4;
+
+            if(ntohs( tcph->source)==p->sport)
+            {
+                printk("udp sport %d is drop return 0 \n ",p->sport);
+                lwfw_statistics.udp_dropped++;
+                lwfw_statistics.sport_dropped++;
+                lwfw_statistics.total_dropped++;
                 return 0;
             }
-    }else{
-    if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
-        udph=(void*)iph+iph->ihl*4;
-
-        if(ntohs( tcph->source)==p->sport){
-            printk("udp sport %d is drop",p->sport);
-            return 0;
-            }
-            }
+        }
     }
-    return NF_ACCEPT;
+    return 1;
 }
 
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
@@ -259,49 +293,68 @@ static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
 
 
     if(!skb)
-    return NF_ACCEPT;
+        return 1;
     iph=ip_hdr(skb);
-    if(p->protocl==LWFW_ANY_PROTOCOL&&p->dport==LWFW_ANY_DPORT)
-    return NF_DROP;
-    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+    if(p->protocl==LWFW_ANY_PROTOCOL||p->dport==LWFW_ANY_DPORT)
+        return 0;
+    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP)
+    {
         tcph=(void *)iph+iph->ihl*4;
 
-        if(ntohs( tcph->dest)==p->dport){
-          printk(" tcp dport %d is drop\n",p->dport);
-                return NF_DROP;
-            }
-    }else{
-    if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
-        udph=(void*)iph+iph->ihl*4;
-
-        if(ntohs( tcph->dest)==p->dport){
-            printk("udp dport %d is drop\n",p->dport);
+        if(ntohs( tcph->dest)==p->dport)
+        {
+            printk(" tcp dport %d is drop return 0\n",p->dport);
+            lwfw_statistics.tcp_dropped++;
+            lwfw_statistics.dport_dropped++;
+            lwfw_statistics.total_dropped++;
             return 0;
-            }
-            }
+        }
     }
-    return NF_ACCEPT;
+    else
+    {
+        if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP)
+        {
+            udph=(void*)iph+iph->ihl*4;
+
+            if(ntohs( tcph->dest)==p->dport)
+            {
+                lwfw_statistics.tcp_dropped++;
+                lwfw_statistics.dport_dropped++;
+                lwfw_statistics.total_dropped++;
+                printk("udp dport %d is drop return 0\n",p->dport);
+                return 0;
+            }
+        }
+    }
+    return 1;
 }
-static int check_time(struct sk_buff*skb,DENY_IN*p){
+static int check_time(struct sk_buff*skb,DENY_IN*p)
+{
     struct timex txc;
     struct rtc_time tm;
     do_gettimeofday(&(txc.time));
     rtc_time_to_tm(txc.time.tv_sec,&tm);
 
     if(p->timeend==LWFW_ANY_TIME&&p->timestart==LWFW_ANY_TIME)
-    return NF_DROP;
-    if((tm.tm_hour+8)<=p->timeend&&(tm.tm_hour+8)>=p->timestart){
-        return NF_DROP;
+    {
+        printk("time any return 0\n");
+        return 0;
     }
-    return NF_ACCEPT;
+    if((tm.tm_hour+8)<=p->timeend&&(tm.tm_hour+8)>=p->timestart)
+    {
+        printk("time in the rule return 0\n");
+        lwfw_statistics.time_dropped++;
+        lwfw_statistics.total_dropped++;
+        return 0;
+    }
+    printk("time is not in the rule and not empty return 1\n");
+    return 1;
 }
 
 
 static int set_sip_rule(char * ip)
 {
     deny_sip = inet_addr(ip);
-    lwfw_statistics.ip_dropped = 0;     /* Reset drop count for IP rule */
-
     printk("LWFW: Set  sIP address: %d.%d.%d.%d\n",
            deny_sip & 0x000000FF, (deny_sip & 0x0000FF00) >> 8,
            (deny_sip & 0x00FF0000) >> 16, (deny_sip & 0xFF000000) >> 24);
@@ -311,8 +364,6 @@ static int set_sip_rule(char * ip)
 static int set_dip_rule(char * ip)
 {
     deny_dip = inet_addr(ip);
-    lwfw_statistics.ip_dropped = 0;     /* Reset drop count for IP rule */
-
     printk("LWFW: Set dip  address: %d.%d.%d.%d\n",
            deny_dip & 0x000000FF, (deny_dip & 0x0000FF00) >> 8,
            (deny_dip & 0x00FF0000) >> 16, (deny_dip & 0xFF000000) >> 24);
@@ -321,12 +372,15 @@ static int set_dip_rule(char * ip)
 }
 static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
 {
-    DENY_IN *p;
+
     int ret=0;
+    int i=0;
     char buff[32];
     char* deny_buff;
+    DENY_IN *p;
     switch (cmd)
     {
+
     case LWFW_GET_VERS:
         return LWFW_VERS;
     case LWFW_ACTIVATE:
@@ -334,22 +388,25 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         active=1;
         printk("LWFW: Activated.\n");
 
-            p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
-            p->next=NULL;
-            p->sip=0x00000000;
-            p->dip=0x00000000;
-            p->dport=LWFW_ANY_DPORT;
-            p->protocl=LWFW_ANY_PROTOCOL;
-
-            p->sport=LWFW_ANY_SPORT;
-            p->timestart=LWFW_ANY_TIME;
-            p->timeend=LWFW_ANY_TIME;
-            if(head==NULL){
+        p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
+        p->next=NULL;
+        p->sip=0x00000000;
+        p->dip=0x00000000;
+        p->dport=LWFW_ANY_DPORT;
+        p->protocl=LWFW_ANY_PROTOCOL;
+        p->copy_flag=0;
+        p->sport=LWFW_ANY_SPORT;
+        p->timestart=LWFW_ANY_TIME;
+        p->timeend=LWFW_ANY_TIME;
+        if(head==NULL)
+        {
             currentp=head=p;
-            }else{
-                currentp->next=p;
-                currentp=p;
-            }
+        }
+        else
+        {
+            currentp->next=p;
+            currentp=p;
+        }
         break;
     }
     case LWFW_DEACTIVATE:
@@ -371,9 +428,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         memmove(deny_buff,buff,sizeof(buff));
         set_sip_rule(deny_buff);
         currentp->sip=deny_sip;
-          printk("current->sip %d.%d.%d.%d\n",
-           currentp->sip & 0x000000FF, (currentp->sip & 0x0000FF00) >> 8,
-           (currentp->sip & 0x00FF0000) >> 16, (currentp->sip & 0xFF000000) >> 24);
+
         break;
     }
     case LWFW_DENY_DIP:
@@ -411,6 +466,128 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     {
         currentp->timeend=(unsigned)arg;
         break;
+    }
+    case LWFW_COPY_TO_USER:
+    {
+        p=head;
+        if(p==NULL)
+        {
+            printk("p is NULL\n");
+        }
+        while(p)
+        {
+            if(p->dport==LWFW_ANY_DPORT)
+                printk("\n\nthe %d rule: dport :any ",i++);
+            else
+                printk("\n\nthe %d rule dport :%u ",i++,p->dport);
+            if(p->dport==LWFW_ANY_DPORT)
+                printk(" sport :any ");
+            else
+                printk("sport :%u ",p->sport);
+            if(p->protocl==1)
+            {
+                printk(" protocol : tcp ");
+            }
+            if(p->protocl==0)
+            {
+                printk(" protocol : udp ");
+            }
+            if(p->protocl==LWFW_ANY_PROTOCOL)
+            {
+                printk(" protocl: any ");
+            }
+            if(p->sip==0x00000000)
+                printk("sip:any ");
+            else
+                printk("sip  address: %d.%d.%d.%d ",
+                       p->sip & 0x000000FF, (p->sip & 0x0000FF00) >> 8,
+                       (p->sip & 0x00FF0000) >> 16, (p->sip & 0xFF000000) >> 24);
+            if(p->dip==0x00000000)
+                printk("dip:any ");
+            else
+                printk("dip  address: %d.%d.%d.%d ",
+                       p->dip & 0x000000FF, (p->dip & 0x0000FF00) >> 8,
+                       (p->dip & 0x00FF0000) >> 16, (p->dip & 0xFF000000) >> 24);
+            if(p->timestart==LWFW_ANY_TIME)
+            {
+                printk("starttime:any ");
+            }
+            else
+            {
+                printk(" start time:%u ",p->timestart);
+            }
+            if(p->timeend==LWFW_ANY_TIME)
+            {
+                printk("end time:any \n");
+            }
+            else
+            {
+                printk(" end time:%u \n",p->timeend);
+            }
+            p=p->next;
+
+        }
+
+        break;
+    }
+    case LWFW_DELETE_INODE:
+    {
+        DENY_IN*pre;
+        DENY_IN*Next;
+        p=head;
+        i=0;
+        if(p==NULL)
+        {
+            printk("\n\n no rule to print");
+        }
+        while(p)
+        {
+            if(arg==0)
+            {
+                pre=head;
+                head=head->next;
+                kfree(pre);
+                break;
+            }
+            if(i+1==arg&&p->next!=NULL)
+            {
+                pre=p;
+                Next=p->next->next;
+                pre->next=Next;
+                kfree(p->next);
+                break;
+            }
+            i++;
+            p=p->next;
+        }
+
+
+    }
+    case LWFW_SAVE_RULE:
+    {
+     DENY_IN* temp;
+     temp=(DENY_IN*)arg;
+       i=0;
+        p=head;
+        if(p==NULL){
+              p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
+              p->copy_flag=COPY_END_EMPTY;
+              copy_to_user(temp++, p,sizeof(DENY_IN));
+             printk("no rule!!!!\n\n");
+        }
+
+        while(p){
+            if(p->next==NULL)
+            p->copy_flag=COPY_END_FULL;
+            copy_to_user(temp++, p,sizeof(DENY_IN));
+            printk("\n复制%d次 %x\n",i,temp);
+            i++;
+            if(i>=20)
+            break;
+            p=p->next;
+        }
+    break;
+
     }
     default:
         ret=-EBADRQC;
