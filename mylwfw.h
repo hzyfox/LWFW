@@ -21,7 +21,7 @@
 #define LWFW_TALKATIVE
 
 #define  LWFW_TCP 0x0001
-#define LWFW_UDP 0x0002
+#define LWFW_UDP 0x0000
 #define COPY_END_EMPTY    0xFFFFEEEE
 #define  COPY_END_FULL     0xFFFFEEEF
 

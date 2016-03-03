@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
         {
 
             deny_in.protocl=strtol(optarg,&str,10);
-            if(deny_in.protocl==1)
+            if(deny_in.protocl==LWFW_TCP)
             {
                 deny_in.protocl=LWFW_TCP;
                 ioctl(fd,LWFW_DENY_PROTOCOL,deny_in.protocl);
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                if(deny_in.protocl==0)
+                if(deny_in.protocl==LWFW_UDP)
                 {
                     deny_in.protocl=LWFW_UDP;
                     ioctl(fd,LWFW_DENY_PROTOCOL,deny_in.protocl);
@@ -169,18 +169,19 @@ int main(int argc, char *argv[])
                     printf("\n\nthe %d rule: dport :any ",j++);
                 else
                     printf("\n\nthe %d rule dport :%lu ",j++,rule[i].dport);
-                if(rule[i].dport==LWFW_ANY_DPORT)
+                if(rule[i].sport==LWFW_ANY_SPORT)
                     printf(" sport :any ");
                 else
                     printf("sport :%lu ",rule[i].sport);
-                if(rule[i].protocl==1)
+                if(rule[i].protocl==LWFW_TCP)
                 {
                     printf(" protocol : tcp ");
                 }
-                if(rule[i].protocl==0)
+                if(rule[i].protocl==LWFW_UDP)
                 {
                     printf(" protocol : udp ");
                 }
+
                 if(rule[i].protocl==LWFW_ANY_PROTOCOL)
                 {
                     printf(" protocl: any ");
@@ -237,13 +238,11 @@ int main(int argc, char *argv[])
             FILE*in;
             i=0;
             in=fopen("/home/foxub/MY_LWFW/rule.txt","r");
-            if(!feof(in)){
-                printf("the rule is empty");
-
+            if(feof(in)){
+                printf("rule is empty\n");
             }
             while(!feof(in)){
                 fread(&rule[i++],sizeof(DENY_IN),1,in);
-
             }
             i=0;
             while(rule[i].copy_flag!=COPY_END_FULL){
