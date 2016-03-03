@@ -572,16 +572,19 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         if(p==NULL){
               p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
               p->copy_flag=COPY_END_EMPTY;
-              copy_to_user(temp++, p,sizeof(DENY_IN));
-             printk("no rule!!!!\n\n");
+              copy_to_user(temp, p,sizeof(DENY_IN));
+             printk("**********************no rule!!!!**********************************************\n\n");
         }
 
         while(p){
-            if(p->next==NULL)
+            if(p->next==NULL){
             p->copy_flag=COPY_END_FULL;
-            copy_to_user(temp++, p,sizeof(DENY_IN));
-            printk("\n复制%d次 %x\n",i,temp);
+
+            }
+            copy_to_user(temp, p,sizeof(DENY_IN));
+            p->copy_flag=0;
             i++;
+            temp=temp+1;
             if(i>=20)
             break;
             p=p->next;

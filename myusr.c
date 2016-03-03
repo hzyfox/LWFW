@@ -152,6 +152,14 @@ int main(int argc, char *argv[])
                 break;
             }
             i=0,j=0;
+            while(1){
+
+                if( rule[i].copy_flag==COPY_END_FULL)
+                    break;
+                    i++;
+
+            }
+            i=0,j=0;
             while(1)
             {
                 if(rule[i].dport==LWFW_ANY_DPORT)
