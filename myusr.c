@@ -8,7 +8,7 @@
 #include<string.h>
 #include "mylwfw.h"
 
-char* const short_options = "RSioangs:d:u:v:x:y:p:D:";
+char* const short_options = "HRSioangs:d:u:v:x:y:p:D:z:";
 struct option long_options[] =
 {
 
@@ -27,6 +27,8 @@ struct option long_options[] =
     {"Delete Inode",1,NULL,'D'},
     {"SaveRule",0,NULL,'S'},
     {"ReadRule",0,NULL,'R'},
+    {"help",0,NULL,'H'},
+    {"act",1,NULL,'z'},
     { 0   , 0, NULL, 0 },
 };
 unsigned int inet_addr(char *str);
@@ -68,13 +70,12 @@ int main(int argc, char *argv[])
             printf("udp_dropped is %d\n",status.udp_dropped);
             printf("sport_dropped is %d\n",status.sport_dropped);
             printf("dport_dropped is %d\n",status.dport_dropped);
-            printf("time_dropped is %d\n",status.time_dropped);
-            printf("total_dropped is %d\n",status.total_dropped);
-            printf("total_seen is %d\n",status.total_seen);
+            printf("time_dropped is %u\n",status.time_dropped);
+            printf("total_dropped is %lu\n",status.total_dropped);
+            printf("total_seen is %lu\n",status.total_seen);
             break;
 
         case 's':
-
             ioctl(fd,LWFW_DENY_SIP,optarg);
             printf("sip is %s\n",optarg);
             break;
@@ -115,7 +116,7 @@ int main(int argc, char *argv[])
             {
                 deny_in.protocl=LWFW_TCP;
                 ioctl(fd,LWFW_DENY_PROTOCOL,deny_in.protocl);
-                printf("deny protocol is tcp");
+                printf("deny protocol is tcp\n");
             }
             else
             {
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
                 {
                     deny_in.protocl=LWFW_UDP;
                     ioctl(fd,LWFW_DENY_PROTOCOL,deny_in.protocl);
-                    printf("deny protocl is udp");
+                    printf("deny protocl is udp\n");
                 }
                 else
                 {
@@ -167,11 +168,11 @@ int main(int argc, char *argv[])
                 if(rule[i].dport==LWFW_ANY_DPORT)
                     printf("\n\nthe %d rule: dport :any ",j++);
                 else
-                    printf("\n\nthe %d rule dport :%u ",j++,rule[i].dport);
+                    printf("\n\nthe %d rule dport :%lu ",j++,rule[i].dport);
                 if(rule[i].dport==LWFW_ANY_DPORT)
                     printf(" sport :any ");
                 else
-                    printf("sport :%u ",rule[i].sport);
+                    printf("sport :%lu ",rule[i].sport);
                 if(rule[i].protocl==1)
                 {
                     printf(" protocol : tcp ");
@@ -236,6 +237,10 @@ int main(int argc, char *argv[])
             FILE*in;
             i=0;
             in=fopen("/home/foxub/MY_LWFW/rule.txt","r");
+            if(!feof(in)){
+                printf("the rule is empty");
+
+            }
             while(!feof(in)){
                 fread(&rule[i++],sizeof(DENY_IN),1,in);
 
@@ -246,7 +251,38 @@ int main(int argc, char *argv[])
                 i++;
             }
              ioctl(fd,LWFW_READ_RULE,&rule[i]);
+             fclose(in);
         break;
+        }
+        case 'H':
+        {
+            printf("\n************************************简易防火墙使用说明********************************************\n");
+            printf("1:   本防火墙是基于命令的格式配置修改加载规则的\n");
+            printf("2:    -a 命令是激活防火墙，同时创建一个链表节点，因此要输入新规则必须要使用-a\n");
+            printf("3:    -s 后面跟源ip地址\n");
+            printf("4:    -d 后面跟目的ip地址 \n");
+            printf("5:   -u 后面源端口     输入十进制数\n");
+            printf("6:   -v  后面跟目的端口  输入十进制数\n");
+            printf("7:   -x  要禁用的起始时间 0-23之间的数\n");
+            printf("8:   -y  要禁用的终止时间 0-23之间的数\n");
+            printf("9:    本防火墙是一个默认拒绝的防火墙，所有输入的规则都将是视为您将要禁止的rule\n");
+            printf("10: -p 1代表tcp协议，0代表udp协议\n");
+            break;
+        }
+        case 'z':
+        {
+            deny_in.act=strtol(optarg,&str,10);
+            if(deny_in.act==0){
+                printf("你设置的是拒绝\n");
+            }
+            if(deny_in.act==1){
+                printf("你设置的是接受\n");
+            }
+            else{
+                printf("你设置的act %u不合法\n",deny_in.act);
+            }
+            ioctl(fd,LWFW_ACT,deny_in.act);
+            break;
         }
 
 

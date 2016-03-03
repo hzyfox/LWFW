@@ -43,6 +43,7 @@
 #define LWFW_DELETE_INODE   0xFEED000E
 #define LWFW_SAVE_RULE 0xFEED000F
 #define LWFW_READ_RULE 0xFEED0010
+#define LWFW_ACT  0xFEED0011
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001
@@ -83,6 +84,7 @@ typedef struct deny_information{
     unsigned int   timestart;
     unsigned int   timeend;
     unsigned int  copy_flag;
+    unsigned int  act;
     struct deny_information*next;
 }DENY_IN;
 

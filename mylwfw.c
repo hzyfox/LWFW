@@ -27,6 +27,7 @@
 #include <linux/cdev.h>           /// struct cdev
 #include "mylwfw.h"
 #include <linux/ktime.h>
+#include<linux/string.h>
 
 //static int set_if_rule(char * interface);
 static int set_sip_rule(char *isp);
@@ -41,6 +42,7 @@ static int check_dip_packet(struct sk_buff *skb,DENY_IN*p);
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p);
 static int check_time(struct sk_buff*skb,DENY_IN*p);
+static int  check_protocol(struct sk_buff*skb,DENY_IN *p);
 //static int check_sport_packet(struct sk_buff *skb);
 //static int check_dport_packet(struct sk_buff *skb);
 //static int check_time_packet(struct sk_buff *skb);
@@ -83,7 +85,7 @@ struct cdev cdev_m;
 DENY_IN  *head,*currentp;
  DENY_IN *read_head;
 DENY_IN*read_currentp;
-unsigned int inet_addr(char *str)
+/**unsigned int inet_addr(char *str)
 {
     int a,b,c,d;
     char arr[4];
@@ -96,6 +98,42 @@ unsigned int inet_addr(char *str)
     arr[3] = d;
     return *(unsigned int*)arr;
 }
+*/
+
+unsigned int inet_addr(char *str){
+    unsigned int a ,b,c,d,e;
+    unsigned int flag;
+    unsigned int flag1=0;
+    int i=0;
+    char arr[4];
+    if(str==NULL)
+    return 0;
+    char example;
+    while(i<strlen(str)){
+        if((example=str[i++])=='/')
+        {flag1=1;
+        break;
+        }
+
+    }
+    if(flag1!=1){
+        str=strcat(str,"/32");
+
+    }
+
+
+    sscanf(str,"%u.%u.%u.%u/%u",&a,&b,&c,&d,&e);
+    printk("************a:%u b %u c %u d %u e %u***************************",a,b,c,d,e);
+    flag=(~0)>>(32-e);
+    arr[0]=a;
+    arr[1]=b;
+    arr[2]=c;
+    arr[3]=d;
+    return( (*(unsigned int *)arr)&flag);
+
+
+}
+
 /*
 * This is the interface device's file_operations structure
  */
@@ -125,6 +163,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
     unsigned int check_dport=0;
     unsigned int check_t=0;
     unsigned int check_sip=0;
+    unsigned int check_pro=0;
     DENY_IN *p=head;
     int j=0;
     /* If LWFW is not currently active, immediately return ACCEPT */
@@ -150,8 +189,9 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         check_t=check_time(skb,p);
         check_dip = check_dip_packet(skb,p);
         check_dport=check_protocol_dport(skb,p);
+        check_pro=check_protocol(skb,p);
         printk("check_sip is %d check_sport is %d check_time is %d check_t is %d check_dip is %d check_dport is %d\n",check_sip,check_sport,check_t,check_dip,check_dport);
-        if (!check_sip && !check_sport&&!check_t&&!check_dip&&!check_dport)
+        if (!check_sip && !check_sport&&!check_t&&!check_dip&&!check_dport&&!p->act&&!check_pro)
             return NF_DROP;
         else
         {
@@ -285,6 +325,25 @@ static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p)
     }
     return 1;
 }
+static int  check_protocol(struct sk_buff*skb,DENY_IN *p){
+     struct tcphdr*tcph=NULL;
+    struct udphdr*udph=NULL;
+    const struct iphdr*iph=NULL;
+
+    if(!skb)
+        return 1;
+
+    iph=ip_hdr(skb);
+     if(p->protocl==LWFW_ANY_PROTOCOL)
+        return 0;
+    if(iph->protocol==IPPROTO_TCP&&p->protocl==LWFW_TCP){
+        return 0;
+    }
+      if(iph->protocol==IPPROTO_UDP&&p->protocl==LWFW_UDP){
+        return 0;
+      }
+      return 1;
+}
 
 static int check_protocol_dport(struct sk_buff*skb,DENY_IN*p)
 {
@@ -380,7 +439,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     char buff[32];
     char* deny_buff;
     DENY_IN *p;
-    int read_time;
+
     switch (cmd)
     {
 
@@ -398,6 +457,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         p->dport=LWFW_ANY_DPORT;
         p->protocl=LWFW_ANY_PROTOCOL;
         p->copy_flag=0;
+        p->act=0;
         p->sport=LWFW_ANY_SPORT;
         p->timestart=LWFW_ANY_TIME;
         p->timeend=LWFW_ANY_TIME;
@@ -475,7 +535,8 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         p=head;
         if(p==NULL)
         {
-            printk("p is NULL\n");
+            printk("*************rule is NULL******************\n");
+            break;
         }
         while(p)
         {
@@ -486,7 +547,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
             if(p->dport==LWFW_ANY_DPORT)
                 printk(" sport :any ");
             else
-                printk("sport :%u ",p->sport);
+                printk("sport :%lu ",p->sport);
             if(p->protocl==1)
             {
                 printk(" protocol : tcp ");
@@ -541,7 +602,8 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         i=0;
         if(p==NULL)
         {
-            printk("\n\n no rule to print");
+            printk("\n\n************** no rule to print*****************************");
+            break;
         }
         while(p)
         {
@@ -577,6 +639,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
               p->copy_flag=COPY_END_EMPTY;
               copy_to_user(temp, p,sizeof(DENY_IN));
              printk("**********************no rule!!!!**********************************************\n\n");
+             break;
         }
 
         while(p){
@@ -599,7 +662,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     {
 
         p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
-        copy_from_user(p,arg,sizeof(DENY_IN));
+        copy_from_user(p,(void*)arg,sizeof(DENY_IN));
         if(read_head==NULL){
 
         read_currentp=read_head=p;
@@ -611,6 +674,11 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         }
         head=read_head;
         currentp=read_currentp;
+        break;
+    }
+    case LWFW_ACT:
+    {
+        currentp->act=arg;
         break;
     }
     default:
