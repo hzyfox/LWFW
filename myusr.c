@@ -222,137 +222,248 @@ int main(int argc, char *argv[])
 
             }
             i=0;
-            FILE*out;
+            FILE*out,*out_see;
             out=fopen("/home/foxub/MY_LWFW/rule.txt","w");
+            out_see=fopen("/home/foxub/MY_LWFW/rule_see.txt","w");
             while(rule[i].copy_flag!=COPY_END_FULL)
             {
                 fwrite(&rule[i],sizeof(DENY_IN),1,out);
-                i++;
-            }
-            fwrite(&rule[i],sizeof(DENY_IN),1,out);
-            fclose(out);
+                fprintf(out_see,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u ",rule[i].dip & 0x000000FF, (rule[i].dip & 0x0000FF00) >> 8,
+                        (rule[i].dip & 0x00FF0000) >> 16, (rule[i].dip & 0xFF000000) >> 24,rule[i].sip & 0x000000FF, (rule[i].sip & 0x0000FF00) >> 8,
+                        (rule[i].sip & 0x00FF0000) >> 16, (rule[i].sip & 0xFF000000) >> 24);
+                if(rule[i].protocl==LWFW_UDP)
+                {
+                    fprintf(out_see,"protocl:UDP  ");
+                }
+                if(rule[i].protocl==LWFW_TCP)
+                {
+                    fprintf(out_see,"protocl:TCP ");
+                }
+                if(rule[i].protocl==LWFW_ANY_PROTOCOL)
+                {
+                    fprintf(out_see,"any protocl  ");
+                }
+                if(rule[i].dport==LWFW_ANY_DPORT)
+                {
+                    fprintf(out_see,"dport: any port");
+                }
+                else
+                {
+                    fprintf(out_see,"dport:%lu",rule[i].dport);
+                }
+                if(rule[i].sport==LWFW_ANY_SPORT)
+                {
+                    fprintf(out_see,"sport: any port ");
+                }
+                else
+                {
+                    fprintf(out_see,"sport:%lu ",rule[i].sport);
+                }
+                if(rule[i].timestart==LWFW_ANY_TIME)
+                {
+                    fprintf(out_see,"timestart: any ");
+                }
+                else
+                {
+                    fprintf(out_see,"timestart: %d",rule[i].timestart);
+                }
+
+                    if(rule[i].timeend==LWFW_ANY_TIME)
+                    {
+                        fprintf(out_see,"timeend: any \n");
+                    }
+                    else
+                    {
+                        fprintf(out_see,"timeend: %d\n",rule[i].timeend);
+                    }
 
 
-            break;
-        }
-        case 'R':
-        {
-            FILE*in;
-            i=0;
-            in=fopen("/home/foxub/MY_LWFW/rule.txt","r");
-            if(feof(in)){
-                printf("rule is empty\n");
-            }
-            while(!feof(in)){
-                fread(&rule[i++],sizeof(DENY_IN),1,in);
-            }
-            i=0;
-            while(rule[i].copy_flag!=COPY_END_FULL){
-                ioctl(fd,LWFW_READ_RULE,&rule[i]);
-                i++;
-            }
-             ioctl(fd,LWFW_READ_RULE,&rule[i]);
-             fclose(in);
-        break;
-        }
-        case 'H':
-        {
-            printf("\n************************************简易防火墙使用说明********************************************\n");
-            printf("1:   本防火墙是基于命令的格式配置修改加载规则的\n");
-            printf("2:    -a 命令是激活防火墙，同时创建一个链表节点，因此要输入新规则必须要使用-a\n");
-            printf("3:    -s 后面跟源ip地址\n");
-            printf("4:    -d 后面跟目的ip地址 \n");
-            printf("5:   -u 后面源端口     输入十进制数\n");
-            printf("6:   -v  后面跟目的端口  输入十进制数\n");
-            printf("7:   -x  要禁用的起始时间 0-23之间的数\n");
-            printf("8:   -y  要禁用的终止时间 0-23之间的数\n");
-            printf("9:    本防火墙是一个默认拒绝的防火墙，所有输入的规则都将是视为您将要禁止的rule\n");
-            printf("10: -p 1代表tcp协议，0代表udp协议\n");
-            break;
-        }
-        case 'z':
-        {
-            deny_in.act=strtol(optarg,&str,10);
-            if(deny_in.act==0){
-                printf("你设置的是拒绝\n");
-            }
-            if(deny_in.act==1){
-                printf("你设置的是接受\n");
-            }
-            else{
-                printf("你设置的act %u不合法\n",deny_in.act);
-            }
-            ioctl(fd,LWFW_ACT,deny_in.act);
-            break;
-        }
-        case 'G':
-        {
-            ioctl(fd,LWFW_GET_LOG,log);
-            printf("\n**************out*********************\n");
-            if(log[0].copy_flag==COPY_END_EMPTY)
-            {
-                printf("no log to get\n");
+                    i++;
+                }
+                fwrite(&rule[i],sizeof(DENY_IN),1,out);
+                fprintf(out_see,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u ",rule[i].dip & 0x000000FF, (rule[i].dip & 0x0000FF00) >> 8,
+                        (rule[i].dip & 0x00FF0000) >> 16, (rule[i].dip & 0xFF000000) >> 24,rule[i].sip & 0x000000FF, (rule[i].sip & 0x0000FF00) >> 8,
+                        (rule[i].sip & 0x00FF0000) >> 16, (rule[i].sip & 0xFF000000) >> 24);
+                if(rule[i].protocl==LWFW_UDP)
+                {
+                    fprintf(out_see,"protocl:UDP  ");
+                }
+                if(rule[i].protocl==LWFW_TCP)
+                {
+                    fprintf(out_see,"protocl:TCP ");
+                }
+                if(rule[i].protocl==LWFW_ANY_PROTOCOL)
+                {
+                    fprintf(out_see,"any protocl  ");
+                }
+                if(rule[i].dport==LWFW_ANY_DPORT)
+                {
+                    fprintf(out_see,"dport: any port ");
+                }
+                else
+                {
+                    fprintf(out_see,"dport:%lu ",rule[i].dport);
+                }
+                if(rule[i].sport==LWFW_ANY_SPORT)
+                {
+                    fprintf(out_see,"sport: any port ");
+                }
+                else
+                {
+                    fprintf(out_see,"sport:%lu ",rule[i].sport);
+                }
+                if(rule[i].timestart==LWFW_ANY_TIME)
+                {
+                    fprintf(out_see,"timestart: any ");
+                }
+                else
+                {
+                    fprintf(out_see,"timestart: %d ",rule[i].timestart);
+                }
+
+                if(rule[i].timeend==LWFW_ANY_TIME)
+                {
+                    fprintf(out_see,"timeend: any \n");
+                }
+                else
+                {
+                    fprintf(out_see,"timeend: %d\n",rule[i].timeend);
+                }
+                fclose(out);
+                fclose(out_see);
+
+
                 break;
             }
-            i=0,j=0;
-            FILE*log_out;
-            log_out=fopen("/home/foxub/MY_LWFW/log.txt","w");
-            while(log[i].copy_flag!=COPY_END_FULL)
+            case 'R':
             {
+                FILE*in;
+                i=0;
+                in=fopen("/home/foxub/MY_LWFW/rule.txt","r");
+                if(feof(in))
+                {
+                    printf("rule is empty\n");
+                }
+                while(!feof(in))
+                {
+                    fread(&rule[i++],sizeof(DENY_IN),1,in);
+                }
+                i=0;
+                while(rule[i].copy_flag!=COPY_END_FULL)
+                {
+                    ioctl(fd,LWFW_READ_RULE,&rule[i]);
+                    i++;
+                }
+                ioctl(fd,LWFW_READ_RULE,&rule[i]);
+                fclose(in);
+                break;
+            }
+            case 'H':
+            {
+                printf("\n************************************简易防火墙使用说明********************************************\n");
+                printf("1:   本防火墙是基于命令的格式配置修改加载规则的\n");
+                printf("2:    -a 命令是激活防火墙，同时创建一个链表节点，因此要输入新规则必须要使用-a\n");
+                printf("3:    -s 后面跟源ip地址\n");
+                printf("4:    -d 后面跟目的ip地址 \n");
+                printf("5:   -u 后面源端口     输入十进制数\n");
+                printf("6:   -v  后面跟目的端口  输入十进制数\n");
+                printf("7:   -x  要禁用的起始时间 0-23之间的数\n");
+                printf("8:   -y  要禁用的终止时间 0-23之间的数\n");
+                printf("9:    本防火墙是一个默认拒绝的防火墙，所有输入的规则都将是视为您将要禁止的rule\n");
+                printf("10: -p 1代表tcp协议，0代表udp协议\n");
+                break;
+            }
+            case 'z':
+            {
+                deny_in.act=strtol(optarg,&str,10);
+                if(deny_in.act==0)
+                {
+                    printf("你设置的是拒绝\n");
+                }
+                if(deny_in.act==1)
+                {
+                    printf("你设置的是接受\n");
+                }
+                else
+                {
+                    printf("你设置的act %u不合法\n",deny_in.act);
+                }
+                ioctl(fd,LWFW_ACT,deny_in.act);
+                break;
+            }
+            case 'G':
+            {
+                ioctl(fd,LWFW_GET_LOG,log);
+                if(log[0].copy_flag==COPY_END_EMPTY)
+                {
+                    printf("no log to get\n");
+                    break;
+                }
+                i=0,j=0;
+                FILE*log_out;
+                log_out=fopen("/home/foxub/MY_LWFW/log.txt","w");
+                while(log[i].copy_flag!=COPY_END_FULL)
+                {
 
-                fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %u dport: %u",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
-                           (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
-                           (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
-                           if(log[i].protocl==LWFW_UDP){
-                                fprintf(log_out,"protocl:UDP\n");
-                           }
-                            if(log[i].protocl==LWFW_TCP){
-                                fprintf(log_out,"protocl:TCP\n");
-                           }
-                            if(log[i].protocl==LWFW_ANY_PROTOCOL){
-                                fprintf(log_out,"any protocl\n");
-                           }
+                    fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %lu dport: %lu ",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
+                            (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
+                            (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
+                    if(log[i].protocl==LWFW_UDP)
+                    {
+                        fprintf(log_out,"protocl:UDP\n");
+                    }
+                    if(log[i].protocl==LWFW_TCP)
+                    {
+                        fprintf(log_out,"protocl:TCP\n");
+                    }
+                    if(log[i].protocl==LWFW_ANY_PROTOCOL)
+                    {
+                        fprintf(log_out,"any protocl\n");
+                    }
 
 
-                i++;
+                    i++;
+                }
+
+                fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %lu dport: %lu " ,log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
+                        (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
+                        (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
+                if(log[i].protocl==LWFW_UDP)
+                {
+                    fprintf(log_out,"protocl:UDP\n");
+                }
+                if(log[i].protocl==LWFW_TCP)
+                {
+                    fprintf(log_out,"protocl:TCP\n");
+                }
+                if(log[i].protocl==LWFW_ANY_PROTOCOL)
+                {
+                    fprintf(log_out,"any protocl\n");
+                }
+                fclose(log_out);
+                break;
             }
 
-             fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %u dport: %u",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
-                           (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
-                           (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
-                           if(log[i].protocl==LWFW_UDP){
-                                fprintf(log_out,"protocl:UDP\n");
-                           }
-                            if(log[i].protocl==LWFW_TCP){
-                                fprintf(log_out,"protocl:TCP\n");
-                           }
-                            if(log[i].protocl==LWFW_ANY_PROTOCOL){
-                                fprintf(log_out,"any protocl\n");
-                           }
-            fclose(log_out);
-            break;
+
+            default:
+                printf("no useful information\n");
+            }
+
         }
-
-
-        default:
-            printf("no useful information\n");
-        }
-
-    }
-    close(fd);
-    return 0;
-}
-
-unsigned int inet_addr(char *str)
-{
-    int a,b,c,d;
-    char arr[4];
-    if(str==NULL)
+        close(fd);
         return 0;
-    sscanf(str,"%d.%d.%d.%d",&a,&b,&c,&d);
-    arr[0] = a;
-    arr[1] = b;
-    arr[2] = c;
-    arr[3] = d;
-    return *(unsigned int*)arr;
-}
+    }
+
+    unsigned int inet_addr(char *str)
+    {
+        int a,b,c,d;
+        char arr[4];
+        if(str==NULL)
+            return 0;
+        sscanf(str,"%d.%d.%d.%d",&a,&b,&c,&d);
+        arr[0] = a;
+        arr[1] = b;
+        arr[2] = c;
+        arr[3] = d;
+        return *(unsigned int*)arr;
+    }
