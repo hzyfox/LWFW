@@ -42,6 +42,7 @@
 #define  LWFW_COPY_TO_USER      0xFEED000D
 #define LWFW_DELETE_INODE   0xFEED000E
 #define LWFW_SAVE_RULE 0xFEED000F
+#define LWFW_READ_RULE 0xFEED0010
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001

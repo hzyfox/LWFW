@@ -8,7 +8,7 @@
 #include<string.h>
 #include "mylwfw.h"
 
-char* const short_options = "Sioangs:d:u:v:x:y:p:D:";
+char* const short_options = "RSioangs:d:u:v:x:y:p:D:";
 struct option long_options[] =
 {
 
@@ -26,6 +26,7 @@ struct option long_options[] =
     {"view all the rule",0,NULL,'i'},
     {"Delete Inode",1,NULL,'D'},
     {"SaveRule",0,NULL,'S'},
+    {"ReadRule",0,NULL,'R'},
     { 0   , 0, NULL, 0 },
 };
 unsigned int inet_addr(char *str);
@@ -152,11 +153,12 @@ int main(int argc, char *argv[])
                 break;
             }
             i=0,j=0;
-            while(1){
+            while(1)
+            {
 
                 if( rule[i].copy_flag==COPY_END_FULL)
                     break;
-                    i++;
+                i++;
 
             }
             i=0,j=0;
@@ -215,7 +217,35 @@ int main(int argc, char *argv[])
                 i++;
 
             }
+            i=0;
+            FILE*out;
+            out=fopen("/home/foxub/MY_LWFW/rule.txt","w");
+            while(rule[i].copy_flag!=COPY_END_FULL)
+            {
+                fwrite(&rule[i],sizeof(DENY_IN),1,out);
+                i++;
+            }
+            fwrite(&rule[i],sizeof(DENY_IN),1,out);
+            fclose(out);
 
+
+            break;
+        }
+        case 'R':
+        {
+            FILE*in;
+            i=0;
+            in=fopen("/home/foxub/MY_LWFW/rule.txt","r");
+            while(!feof(in)){
+                fread(&rule[i++],sizeof(DENY_IN),1,in);
+
+            }
+            i=0;
+            while(rule[i].copy_flag!=COPY_END_FULL){
+                ioctl(fd,LWFW_READ_RULE,&rule[i]);
+                i++;
+            }
+             ioctl(fd,LWFW_READ_RULE,&rule[i]);
         break;
         }
 

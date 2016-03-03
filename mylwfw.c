@@ -81,6 +81,8 @@ static  unsigned int deny_dip=0x00000000;
 
 struct cdev cdev_m;
 DENY_IN  *head,*currentp;
+ DENY_IN *read_head;
+DENY_IN*read_currentp;
 unsigned int inet_addr(char *str)
 {
     int a,b,c,d;
@@ -378,6 +380,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     char buff[32];
     char* deny_buff;
     DENY_IN *p;
+    int read_time;
     switch (cmd)
     {
 
@@ -591,6 +594,24 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         }
     break;
 
+    }
+    case LWFW_READ_RULE:
+    {
+
+        p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
+        copy_from_user(p,arg,sizeof(DENY_IN));
+        if(read_head==NULL){
+
+        read_currentp=read_head=p;
+        }
+        else{
+                read_currentp->next=p;
+                read_currentp=p;
+
+        }
+        head=read_head;
+        currentp=read_currentp;
+        break;
     }
     default:
         ret=-EBADRQC;
