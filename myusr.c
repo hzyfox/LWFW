@@ -296,15 +296,39 @@ int main(int argc, char *argv[])
             }
             i=0,j=0;
             FILE*log_out;
-            log_out=fopen("/home/foxub/MY_LWFW/log.dat","w");
+            log_out=fopen("/home/foxub/MY_LWFW/log.txt","w");
             while(log[i].copy_flag!=COPY_END_FULL)
             {
-            printf("*****************************write %d i log***************************\n",i);
-                fwrite(&log[i],sizeof(DENY_IN),1,log_out);
+
+                fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %u dport: %u",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
+                           (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
+                           (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
+                           if(log[i].protocl==LWFW_UDP){
+                                fprintf(log_out,"protocl:UDP\n");
+                           }
+                            if(log[i].protocl==LWFW_TCP){
+                                fprintf(log_out,"protocl:TCP\n");
+                           }
+                            if(log[i].protocl==LWFW_ANY_PROTOCOL){
+                                fprintf(log_out,"any protocl\n");
+                           }
+
+
                 i++;
             }
-             printf("*****************************write %d i log***************************\n",i);
-            fwrite(&log[i],sizeof(DENY_IN),1,log_out);
+
+             fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %u dport: %u",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
+                           (log[i].dip & 0x00FF0000) >> 16, (log[i].dip & 0xFF000000) >> 24,log[i].sip & 0x000000FF, (log[i].sip & 0x0000FF00) >> 8,
+                           (log[i].sip & 0x00FF0000) >> 16, (log[i].sip & 0xFF000000) >> 24,log[i].sport,log[i].dport);
+                           if(log[i].protocl==LWFW_UDP){
+                                fprintf(log_out,"protocl:UDP\n");
+                           }
+                            if(log[i].protocl==LWFW_TCP){
+                                fprintf(log_out,"protocl:TCP\n");
+                           }
+                            if(log[i].protocl==LWFW_ANY_PROTOCOL){
+                                fprintf(log_out,"any protocl\n");
+                           }
             fclose(log_out);
             break;
         }
