@@ -252,11 +252,12 @@ static int copy_log(struct sk_buff*skb,DENY_IN*temp){
                 }
             }
             temp->act=0;
-            temp->copy_flag=0;
+            temp->copy_flag=1;
             temp->sip=ip->saddr;
             temp->dip=ip->daddr;
             temp->timeend=LWFW_ANY_TIME;
             temp->timestart=LWFW_ANY_TIME;
+            temp->next=NULL;
             return 0;
 
 }
@@ -712,6 +713,40 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         }
         break;
 
+    }
+    case LWFW_GET_LOG:
+    {
+        DENY_IN* log_temp;
+        log_temp=(DENY_IN*)arg;
+        i=0;
+        p=log_head;
+        if(p==NULL)
+        {
+            p=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
+            p->copy_flag=COPY_END_EMPTY;
+            copy_to_user(log_temp, p,sizeof(DENY_IN));
+            printk("**********************************************no rule!!!!**********************************************\n\n");
+            break;
+        }
+
+        while(p)
+        {
+            if(p->next==NULL)
+            {
+                printk("\n\n*********************************************COPY_LOG_END*****************************************\n\n");
+                p->copy_flag=COPY_END_FULL;
+
+            }
+            copy_to_user(log_temp, p,sizeof(DENY_IN));
+            printk("\n\n************************************************copy_log %d *************************************\n\n",i);
+            p->copy_flag=1;
+            i++;
+            log_temp=log_temp+1;
+            if(i>=100)
+                break;
+            p=p->next;
+        }
+        break;
     }
     case LWFW_READ_RULE:
     {

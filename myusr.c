@@ -8,7 +8,7 @@
 #include<string.h>
 #include "mylwfw.h"
 
-char* const short_options = "HRSioangs:d:u:v:x:y:p:D:z:";
+char* const short_options = "GHRSioangs:d:u:v:x:y:p:D:z:";
 struct option long_options[] =
 {
 
@@ -29,6 +29,7 @@ struct option long_options[] =
     {"ReadRule",0,NULL,'R'},
     {"help",0,NULL,'H'},
     {"act",1,NULL,'z'},
+    {"GetLog",0,NULL,'G'},
     { 0   , 0, NULL, 0 },
 };
 unsigned int inet_addr(char *str);
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
 {
     int c;
     DENY_IN  rule[20];
+    DENY_IN log[100];
     int i=0,j=0;
     int fd;
     char*str;
@@ -281,6 +283,29 @@ int main(int argc, char *argv[])
                 printf("你设置的act %u不合法\n",deny_in.act);
             }
             ioctl(fd,LWFW_ACT,deny_in.act);
+            break;
+        }
+        case 'G':
+        {
+            ioctl(fd,LWFW_GET_LOG,log);
+            printf("\n**************out*********************\n");
+            if(log[0].copy_flag==COPY_END_EMPTY)
+            {
+                printf("no log to get\n");
+                break;
+            }
+            i=0,j=0;
+            FILE*log_out;
+            log_out=fopen("/home/foxub/MY_LWFW/log.dat","w");
+            while(log[i].copy_flag!=COPY_END_FULL)
+            {
+            printf("*****************************write %d i log***************************\n",i);
+                fwrite(&log[i],sizeof(DENY_IN),1,log_out);
+                i++;
+            }
+             printf("*****************************write %d i log***************************\n",i);
+            fwrite(&log[i],sizeof(DENY_IN),1,log_out);
+            fclose(log_out);
             break;
         }
 

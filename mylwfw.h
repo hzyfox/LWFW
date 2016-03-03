@@ -44,6 +44,7 @@
 #define LWFW_SAVE_RULE 0xFEED000F
 #define LWFW_READ_RULE 0xFEED0010
 #define LWFW_ACT  0xFEED0011
+#define LWFW_GET_LOG 0xFEED0012
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001
