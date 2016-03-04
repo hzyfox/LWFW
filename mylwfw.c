@@ -37,6 +37,7 @@ static int set_dip_rule(char *dip);
 //static int set_time_rule(char *time);
 //static int check_tcp_packet(struct sk_buff *skb);
 //static int check_udp_packet(struct sk_buff *skb);
+static unsigned int get_net_num(char*str);
 static int check_sip_packet(struct sk_buff *skb,DENY_IN *p);
 static int check_dip_packet(struct sk_buff *skb,DENY_IN*p);
 static int check_protocol_sport(struct sk_buff*skb,DENY_IN*p);
@@ -271,6 +272,7 @@ static int check_sip_packet(struct sk_buff *skb,DENY_IN*p)
         return 1;
     }
     ip=ip_hdr(skb);
+    printk("**********************************ip->saddr %u  p->sip  %u*******************************\n",ip->saddr,p->sip);
     if(ip->saddr==p->sip||p->sip==0x00000000)
     {
         printk("ip->saddr= %d.%d.%d.%d ",
@@ -454,13 +456,20 @@ static int check_time(struct sk_buff*skb,DENY_IN*p)
         printk("time any return 0\n");
         return 0;
     }
-    if((tm.tm_hour+8)<=p->timeend&&(tm.tm_hour+8)>=p->timestart)
+    if((tm.tm_hour+8)<p->timeend&&(tm.tm_hour+8)>p->timestart)
     {
         printk("time in the rule return 0\n");
         lwfw_statistics.time_dropped++;
         lwfw_statistics.total_dropped++;
         return 0;
     }
+    if(tm.tm_min>p->startm&&((tm.tm_hour+8)==p->timestart)){
+        return 0;
+    }
+    if(tm.tm_min<p->endm&&((tm.tm_hour+8)==p->timeend)){
+        return 0;
+    }
+
     printk("time is not in the rule and not empty return 1\n");
     return 1;
 }
@@ -474,6 +483,35 @@ static int set_sip_rule(char * ip)
            (deny_sip & 0x00FF0000) >> 16, (deny_sip & 0xFF000000) >> 24);
 
     return 0;
+}
+static unsigned int get_net_num(char*str){
+     unsigned int a ,b,c,d,e;
+    unsigned int flag;
+    unsigned int flag1=0;
+    int i=0;
+    if(str==NULL)
+        return 0;
+    char example;
+    while(i<strlen(str))
+    {
+        if((example=str[i++])=='/')
+        {
+            flag1=1;
+            break;
+        }
+
+    }
+    if(flag1!=1)
+    {
+        str=strcat(str,"/32");
+
+    }
+
+
+    sscanf(str,"%u.%u.%u.%u/%u",&a,&b,&c,&d,&e);
+    return  e;
+
+
 }
 static int set_dip_rule(char * ip)
 {
@@ -514,6 +552,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         p->sport=LWFW_ANY_SPORT;
         p->timestart=LWFW_ANY_TIME;
         p->timeend=LWFW_ANY_TIME;
+        p->net_num=32;
         if(head==NULL)
         {
             currentp=head=p;
@@ -543,6 +582,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
         memmove(deny_buff,buff,sizeof(buff));
         set_sip_rule(deny_buff);
+        currentp->net_num=get_net_num(deny_buff);
         currentp->sip=deny_sip;
 
         break;
@@ -762,7 +802,6 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         {
             read_currentp->next=p;
             read_currentp=p;
-
         }
         head=read_head;
         currentp=read_currentp;
@@ -771,6 +810,16 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     case LWFW_ACT:
     {
         currentp->act=arg;
+        break;
+    }
+    case LWFW_STARTM:
+    {
+        currentp->startm=arg;
+        break;
+    }
+    case LWFW_ENDM:
+    {
+        currentp->endm=arg;
         break;
     }
     default:

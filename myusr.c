@@ -8,7 +8,7 @@
 #include<string.h>
 #include "mylwfw.h"
 
-char* const short_options = "GHRSioangs:d:u:v:x:y:p:D:z:";
+char* const short_options = "GHRSioangs:d:u:v:x:y:p:D:z:M:N:";
 struct option long_options[] =
 {
 
@@ -30,6 +30,8 @@ struct option long_options[] =
     {"help",0,NULL,'H'},
     {"act",1,NULL,'z'},
     {"GetLog",0,NULL,'G'},
+    {"start minute",1,NULL,'m'},
+    {"end  minute",1,NULL,'o'},
     { 0   , 0, NULL, 0 },
 };
 unsigned int inet_addr(char *str);
@@ -225,7 +227,7 @@ int main(int argc, char *argv[])
             FILE*out,*out_see;
             out=fopen("/home/foxub/MY_LWFW/rule.txt","w");
             out_see=fopen("/home/foxub/MY_LWFW/rule_see.txt","w");
-            while(rule[i].copy_flag!=COPY_END_FULL)
+            while(rule[i].copy_flag!=COPY_END_FULL&&i<19)
             {
                 fwrite(&rule[i],sizeof(DENY_IN),1,out);
                 fprintf(out_see,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u ",rule[i].dip & 0x000000FF, (rule[i].dip & 0x0000FF00) >> 8,
@@ -402,7 +404,7 @@ int main(int argc, char *argv[])
                 i=0,j=0;
                 FILE*log_out;
                 log_out=fopen("/home/foxub/MY_LWFW/log.txt","w");
-                while(log[i].copy_flag!=COPY_END_FULL)
+                while(log[i].copy_flag!=COPY_END_FULL&&i<99)
                 {
 
                     fprintf(log_out,"sip: %u.%u.%u.%u dip: %u.%u.%u.%u sport: %lu dport: %lu ",log[i].dip & 0x000000FF, (log[i].dip & 0x0000FF00) >> 8,
@@ -442,6 +444,22 @@ int main(int argc, char *argv[])
                 }
                 fclose(log_out);
                 break;
+            }
+            case 'M':
+            {
+                i=strtol(optarg,&str,10);
+                deny_in.startm=i;
+                ioctl(fd,LWFW_STARTM,deny_in.startm);
+                break;
+
+            }
+               case 'N':
+            {
+                i=strtol(optarg,&str,10);
+                deny_in.endm=i;
+                ioctl(fd,LWFW_ENDM,deny_in.endm);
+                break;
+
             }
 
 
