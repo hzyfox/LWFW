@@ -8,7 +8,7 @@
 #include<string.h>
 #include "mylwfw.h"
 
-char* const short_options = "GHRSioangs:d:u:v:x:y:p:D:z:M:N:";
+char* const short_options = "BGHRSioangs:d:u:v:x:y:p:D:z:M:N:";
 struct option long_options[] =
 {
 
@@ -32,6 +32,7 @@ struct option long_options[] =
     {"GetLog",0,NULL,'G'},
     {"start minute",1,NULL,'m'},
     {"end  minute",1,NULL,'o'},
+    {"STARTLOG",1,NULL,'B'},
     { 0   , 0, NULL, 0 },
 };
 unsigned int inet_addr(char *str);
@@ -461,6 +462,15 @@ int main(int argc, char *argv[])
                 break;
 
             }
+               case 'B':
+            {
+                i=strtol(optarg,&str,10);
+                deny_in.start_log=i;
+                ioctl(fd,LWFW_ENDM,deny_in.start_log);
+                break;
+
+            }
+
 
 
             default:

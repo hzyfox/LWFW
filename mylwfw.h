@@ -47,6 +47,7 @@
 #define LWFW_GET_LOG 0xFEED0012
 #define LWFW_STARTM  0xFEED0013
 #define LWFW_ENDM    0xFEED0014
+#define LWFW_START_LOG 0xFEED0015
 
 /* Control flags/Options */
 #define LWFW_IF_DENY_ACTIVE   0x00000001
@@ -91,6 +92,7 @@ typedef struct deny_information{
     unsigned int  startm;
     unsigned int endm;
     unsigned int net_num;
+    unsigned int start_log;
     struct deny_information*next;
 }DENY_IN;
 

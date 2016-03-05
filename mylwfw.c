@@ -93,14 +93,16 @@ unsigned int inet_addr(char *str)
     unsigned int a ,b,c,d,e;
     unsigned int flag;
     unsigned int flag1=0;
+   unsigned int net_flag=0;
     int i=0;
     char arr[4];
+    char example_t;
     if(str==NULL)
         return 0;
-    char example;
+
     while(i<strlen(str))
     {
-        if((example=str[i++])=='/')
+        if((example_t=str[i++])=='/')
         {
             flag1=1;
             break;
@@ -116,12 +118,14 @@ unsigned int inet_addr(char *str)
 
     sscanf(str,"%u.%u.%u.%u/%u",&a,&b,&c,&d,&e);
     printk("************a:%u b %u c %u d %u e %u***************************",a,b,c,d,e);
-    flag=(~0)>>(32-e);
+    flag=(~net_flag)>>(32-e);
     arr[0]=a;
     arr[1]=b;
     arr[2]=c;
     arr[3]=d;
-    return( (*(unsigned int *)arr)&flag);
+    flag1=((*(unsigned int *)arr)&flag);
+
+    return flag1;
 
 
 }
@@ -185,6 +189,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
         printk("check_sip is %u check_sport is %u check_time is %u check_t is %u check_dip is %u check_dport is %u\n",check_sip,check_sport,check_t,check_dip,check_dport);
         if (!check_sip && !check_sport&&!check_t&&!check_dip&&!check_dport&&!p->act&&!check_pro)
         {
+        if(p->start_log==1){
             temp=kmalloc(sizeof(DENY_IN),GFP_KERNEL);
             copy_log(skb,temp);
                    if(log_head==NULL)
@@ -195,6 +200,7 @@ unsigned int lwfw_hookfn(unsigned int hooknum,
             {
                 log_currentp->next=temp;
                 log_currentp=temp;
+            }
             }
 
             return NF_DROP;
@@ -266,14 +272,17 @@ static int check_sip_packet(struct sk_buff *skb,DENY_IN*p)
 {
 
     struct iphdr *ip;
+    unsigned int flag=0;
     if(!skb)
     {
         printk("skb is empty\n");
         return 1;
     }
+
+     flag=(~flag)>>(32-p->net_num);
     ip=ip_hdr(skb);
     printk("**********************************ip->saddr %u  p->sip  %u*******************************\n",ip->saddr,p->sip);
-    if(ip->saddr==p->sip||p->sip==0x00000000)
+    if((ip->saddr&flag)==p->sip||p->sip==0x00000000)
     {
         printk("ip->saddr= %d.%d.%d.%d ",
                ip->saddr & 0x000000FF, (ip->saddr & 0x0000FF00) >> 8,
@@ -303,10 +312,14 @@ static int check_dip_packet(struct sk_buff *skb,DENY_IN*p)
 {
 
     struct iphdr *ip;
+    unsigned int flag=0;
     if(!skb)
         return 1;
     ip=ip_hdr(skb);
-    if(ip->daddr==p->dip||p->dip==0x00000000)
+
+
+     flag=(~flag)>>(32-p->net_num);
+    if((ip->daddr&flag)==p->dip||p->dip==0x00000000)
     {
         if(p->dip!=0x00000000)
         {
@@ -486,12 +499,12 @@ static int set_sip_rule(char * ip)
 }
 static unsigned int get_net_num(char*str){
      unsigned int a ,b,c,d,e;
-    unsigned int flag;
     unsigned int flag1=0;
+    char example;
     int i=0;
     if(str==NULL)
         return 0;
-    char example;
+
     while(i<strlen(str))
     {
         if((example=str[i++])=='/')
@@ -509,6 +522,7 @@ static unsigned int get_net_num(char*str){
 
 
     sscanf(str,"%u.%u.%u.%u/%u",&a,&b,&c,&d,&e);
+
     return  e;
 
 
@@ -582,8 +596,13 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
         memmove(deny_buff,buff,sizeof(buff));
         set_sip_rule(deny_buff);
-        currentp->net_num=get_net_num(deny_buff);
         currentp->sip=deny_sip;
+        currentp->net_num=get_net_num(deny_buff);
+         printk("\n\n\n********************net_num is %u**************\n\n\n",currentp->net_num);
+
+          printk("\n\n\nsip  address: %d.%d.%d.%d \n\n\n",
+                       currentp->sip & 0x000000FF, (currentp->sip & 0x0000FF00) >> 8,
+                       (currentp->sip & 0x00FF0000) >> 16, (currentp->sip & 0xFF000000) >> 24);
 
         break;
     }
@@ -594,6 +613,7 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
         //  memccpy(currentp->sip,buff,'!',sizeof(buff));
         memmove(deny_buff,buff,sizeof(buff));
         set_dip_rule(deny_buff);
+        currentp->net_num=get_net_num(deny_buff);
         currentp->dip=deny_dip;
         break;
     }
@@ -786,6 +806,14 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
                 break;
             p=p->next;
         }
+        p=log_head;
+        while(p)
+        {
+            log_temp=p;
+            p=p->next;
+            kfree(log_temp);
+        }
+        log_head=NULL;
         break;
     }
     case LWFW_READ_RULE:
@@ -820,6 +848,11 @@ static int lwfw_ioctl(struct file *file,unsigned int cmd, unsigned long arg)
     case LWFW_ENDM:
     {
         currentp->endm=arg;
+        break;
+    }
+    case LWFW_START_LOG:
+    {
+        currentp->start_log=arg;
         break;
     }
     default:
