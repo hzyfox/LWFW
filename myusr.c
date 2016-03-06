@@ -6,9 +6,10 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
+#include <unistd.h>
 #include "mylwfw.h"
 
-char* const short_options = "BGHRSioangs:d:u:v:x:y:p:D:z:M:N:";
+char* const short_options = "GHRSioangs:d:u:v:x:y:p:D:z:M:N:B:";
 struct option long_options[] =
 {
 
@@ -30,8 +31,8 @@ struct option long_options[] =
     {"help",0,NULL,'H'},
     {"act",1,NULL,'z'},
     {"GetLog",0,NULL,'G'},
-    {"start minute",1,NULL,'m'},
-    {"end  minute",1,NULL,'o'},
+    {"start minute",1,NULL,'M'},
+    {"end  minute",1,NULL,'N'},
     {"STARTLOG",1,NULL,'B'},
     { 0   , 0, NULL, 0 },
 };
